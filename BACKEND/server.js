@@ -1,25 +1,34 @@
-const express = require("express");
-const cors = require("cors");
-const userRouter = require("./routes/user.routes");
-const issueRouter = require("./routes/issue.routes");
-const connectDB = require("./db/db");
-const path = require('path')
+import express from "express";
+import cors from "cors";
+import userRouter from "./routes/user.routes.js";
+import issueRouter from "./routes/issue.routes.js";
+import connectDB from "./db/db.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 const app = express();
-require('dotenv').config();
-// CORS should come before routes
 const PORT = process.env.PORT || 10000;
 
-// Middleware for JSON and form data
+// __dirname replacement in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: "*" }));
-// Serve uploaded files so frontend can access them
+
+// Serve uploaded files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Routes
 app.use("/api/users", userRouter);
 app.use("/api/issues", issueRouter);
 
+// Start server
 const start = async () => {
   try {
     await connectDB();

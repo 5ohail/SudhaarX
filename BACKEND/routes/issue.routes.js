@@ -1,23 +1,33 @@
-const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const issueModel = require("../models/issueModel");
+import express from "express";
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
+import issueModel from "../models/issueModel.js";
 
 const router = express.Router();
+
+// __dirname replacement for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Multer storage setup
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
+  destination: (req, file, cb) => cb(null, path.join(__dirname, "../uploads/")),
   filename: (req, file, cb) =>
     cb(null, Date.now() + path.extname(file.originalname)),
 });
+
 const upload = multer({ storage });
 
 // POST /api/issues
 router.post("/", upload.single("image"), async (req, res) => {
   try {
     const { title, description, category, latitude, longitude, address, reportedBy } = req.body;
+
     if (!req.file) {
       return res.status(400).json({ message: "Image file is required" });
     }
+
     const newIssue = await issueModel.create({
       title,
       description,
@@ -34,24 +44,34 @@ router.post("/", upload.single("image"), async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// POST /api/issues/getData
 router.post("/getData", async (req, res) => {
   try {
     const { username } = req.body;
+
     const totalIssues = await issueModel.countDocuments({ reportedBy: username });
     const pendingIssues = await issueModel.countDocuments({ reportedBy: username, status: "Pending" });
     const resolvedIssues = await issueModel.countDocuments({ reportedBy: username, status: "Resolved" });
-    const RejectedIssues = await issueModel.countDocuments({reportedBy:username, status: "Rejected"})
-    res.status(200).json({ total: totalIssues, pending: pendingIssues, resolved : resolvedIssues, rejected: RejectedIssues });
+    const rejectedIssues = await issueModel.countDocuments({ reportedBy: username, status: "Rejected" });
+
+    res.status(200).json({
+      total: totalIssues,
+      pending: pendingIssues,
+      resolved: resolvedIssues,
+      rejected: rejectedIssues,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
+
+// POST /api/issues/nearby
 router.post("/nearby", async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
     const radiusInKm = 5; // 5 km
 
-    // Haversine formula inside MongoDB
     const issues = await issueModel.aggregate([
       {
         $addFields: {
@@ -97,6 +117,7 @@ router.post("/nearby", async (req, res) => {
   }
 });
 
+// POST /api/issues/recent
 router.post("/recent", async (req, res) => {
   try {
     const { username } = req.body;
@@ -105,7 +126,7 @@ router.post("/recent", async (req, res) => {
     }
 
     const issues = await issueModel.find({ reportedBy: username })
-      .sort({ createdAt: -1 }) // newest first
+      .sort({ createdAt: -1 })
       .limit(3);
 
     res.json(issues);
@@ -115,4 +136,4 @@ router.post("/recent", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
