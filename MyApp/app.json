@@ -28,7 +28,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.sohx1l.SudhaarX"
+      "package": "com.SudhaarX.app"
     },
     "web": {
       "bundler": "metro",
