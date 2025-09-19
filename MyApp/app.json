@@ -18,7 +18,7 @@
     
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/SudhaarX.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
