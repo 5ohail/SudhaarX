@@ -2,7 +2,6 @@
 node_modules/
 
 # Expo
-.expo/
 .expo-shared/
 dist/
 web-build/
@@ -37,5 +36,4 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-.android/
-
+.expo/
