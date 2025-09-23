@@ -1,6 +1,7 @@
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import React from "react";
+
 interface IssueProps {
   category: string;
   imgUri: string;
@@ -16,7 +17,7 @@ const truncate = (txt: string) => {
   return txt;
 };
 
-const IssueCard = ({ category, imgUri, description, status, latitude, longitude,address }: IssueProps) => {
+const IssueCard = ({ category, imgUri, description, status, latitude, longitude, address }: IssueProps) => {
   const router = useRouter();
   const getColor = (status: string) => {
     if (status === "Resolved") return "green";
@@ -28,7 +29,7 @@ const IssueCard = ({ category, imgUri, description, status, latitude, longitude,
 
   return (
     <Pressable
-       onPress={() => {
+      onPress={() => {
         router.push({
           pathname: "/map",
           params: {
@@ -37,8 +38,7 @@ const IssueCard = ({ category, imgUri, description, status, latitude, longitude,
             img: imgUri,
             address: address,
             category,
-            description
-            
+            description,
           },
         });
       }}
@@ -56,6 +56,7 @@ const IssueCard = ({ category, imgUri, description, status, latitude, longitude,
 };
 
 export default IssueCard;
+
 
 
 const styles = StyleSheet.create({

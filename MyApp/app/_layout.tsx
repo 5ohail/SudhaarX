@@ -35,7 +35,7 @@ export default function Layout() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <>
       <Stack initialRouteName={firstLaunch ? "onBoarding" : "index"}>
         <Stack.Screen name="onBoarding" options={{ headerShown: false }} />
         <Stack.Screen
@@ -59,10 +59,8 @@ export default function Layout() {
           options={{ title: "Directions", headerTitleAlign: "center", headerLeft: headerLogo }}
         />
       </Stack>
-
-      {/* Bottom Navbar */}
       {!firstLaunch && <BottomNavbar />}
-    </SafeAreaView>
+      </>
   );
 }
 

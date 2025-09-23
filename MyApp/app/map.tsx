@@ -1,6 +1,6 @@
 // app/map.tsx
 import React from "react";
-import { ScrollView,View ,StyleSheet, Dimensions, TouchableOpacity, Text, Platform, Linking,Image } from "react-native";
+import { View ,StyleSheet, Dimensions, TouchableOpacity, Text, Platform, Linking,Image } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 export default function Map() {

@@ -6,6 +6,7 @@ type IssuesProps = {
   description?: string;
   imageUrl?: string;
   category?: string;
+  key?: number | string | null;
 };
 
 const Issues: React.FC<IssuesProps> = ({

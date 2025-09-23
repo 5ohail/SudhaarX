@@ -1,5 +1,4 @@
 import Issues from "@/components/Issues";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 const Index = () => {
@@ -55,7 +54,7 @@ const Index = () => {
       <ScrollView>
         {categories.map((item, index) => (
           <Issues
-            key={index}
+          key={index}
             heading={item.heading}
             description={item.description}
             imageUrl={item.imageUrl}

@@ -89,9 +89,9 @@ const Notifications = ({ userToken }: NotificationsProps) => {
         ) : errorMsg ? (
           <Text style={styles.error}>{errorMsg}</Text>
         ) : issues.length > 0 ? (
-          issues.map((issue, idx) => (
+          issues.map((issue,) => (
             <IssueCard
-              key={idx}
+              key={issue._id}
               imgUri={issue.imageUrl}
               category={issue.category}
               description={issue.description}

@@ -5,15 +5,21 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "module": "node16",
+    "moduleResolution": "node16",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "app",
+    "src",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "env.d.ts",
-    "types",
-    "src"
+    "types"
   ]
 }

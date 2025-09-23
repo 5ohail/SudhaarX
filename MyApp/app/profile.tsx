@@ -12,7 +12,9 @@ import Toast, { BaseToast } from "react-native-toast-message";
 import Login from "@/components/Login";
 import Register from "@/components/Register";
 import axios from "axios";
-import { STOCK_IMAGE } from "@env";
+// import { STOCK_IMAGE } from "@env";
+const STOCK_IMAGE =
+  "https://images.unsplash.com/photo-1750535135451-7c20e24b60c1?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDExfHx8ZW58MHx8fHx8";
 
 const toastConfig = {
   success: (props: any) => (
@@ -33,7 +35,7 @@ const toastConfig = {
   ),
 };
 
-interface recentData{
+interface recentData {
   _id: string;
   title: string;
   description: string;
@@ -44,8 +46,8 @@ interface recentData{
   longitude: number;
   reportedBy: string;
   status: "Pending" | "Resolved" | "Rejected"; // expand if needed
-  createdAt: string;  // ISO date string
-  updatedAt: string;  // ISO date string
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
   __v: number;
 }
 
@@ -58,11 +60,9 @@ export default function Profile() {
   const [pending, setPending] = useState<number>(0);
   const [resolved, setResolved] = useState<number>(0);
   const [rejected, setRejected] = useState<number>(0);
-  const [recent,setRecent] = useState<recentData[]>([])
+  const [recent, setRecent] = useState<recentData[]>([]);
 
   const BASEURL = "http://172.16.43.91:3000/api";
-  
-
 
   useEffect(() => {
     const loadUser = async () => {
@@ -95,10 +95,9 @@ export default function Profile() {
     if (!user || !userToken) return;
     const fetchStats = async () => {
       try {
-        const { data } = await axios.post(
-          `${BASEURL}/issues/getData`,
-          {username: user.username}
-        ); // { total, pending, resolved, rejected }
+        const { data } = await axios.post(`${BASEURL}/issues/getData`, {
+          username: user.username,
+        }); // { total, pending, resolved, rejected }
         setPending(data.pending);
         setTotal(data.total);
         setResolved(data.resolved);
@@ -110,23 +109,21 @@ export default function Profile() {
     fetchStats();
   }, [user]);
   useEffect(() => {
-  if (!user || !userToken) return;
+    if (!user || !userToken) return;
 
-  const fetchRecents = async () => {
-    try {
-      const { data } = await axios.post(
-        `${BASEURL}/issues/recent`,
-        { username: user.username }
-      );
-      setRecent(data); // assuming API returns an array
-    } catch (error) {
-      console.log("Error fetching recents:", error);
-    }
-  };
+    const fetchRecents = async () => {
+      try {
+        const { data } = await axios.post(`${BASEURL}/issues/recent`, {
+          username: user.username,
+        });
+        setRecent(data); // assuming API returns an array
+      } catch (error) {
+        console.log("Error fetching recents:", error);
+      }
+    };
 
-  fetchRecents();
-}, [user, userToken]);
-
+    fetchRecents();
+  }, [user, userToken]);
 
   const handleLogout = async () => {
     setUser(null);
@@ -172,9 +169,11 @@ export default function Profile() {
       {/* Issue Stats Cards */}
       {/* Cards container */}
       <View style={styles.cardContainer}>
-        <View style={[styles.card, { backgroundColor: "#3498db", }]}>
-          <Text style={{...styles.cardTitle,color:"#fff"}}>Total Issues</Text>
-          <Text style={{...styles.cardValue,color:"#fff"}}>{total}</Text>
+        <View style={[styles.card, { backgroundColor: "#3498db" }]}>
+          <Text style={{ ...styles.cardTitle, color: "#fff" }}>
+            Total Issues
+          </Text>
+          <Text style={{ ...styles.cardValue, color: "#fff" }}>{total}</Text>
         </View>
         <View style={[styles.card, { backgroundColor: "#f1c40f" }]}>
           <Text style={styles.cardTitle}>Pending</Text>
@@ -185,26 +184,35 @@ export default function Profile() {
           <Text style={styles.cardValue}>{resolved}</Text>
         </View>
         <View style={[styles.card, { backgroundColor: "#e74c3c" }]}>
-          <Text style={{...styles.cardTitle,color:"#fff"}}>Rejected</Text>
-          <Text style={{...styles.cardValue,color:"#fff"}}>{rejected}</Text>
+          <Text style={{ ...styles.cardTitle, color: "#fff" }}>Rejected</Text>
+          <Text style={{ ...styles.cardValue, color: "#fff" }}>{rejected}</Text>
         </View>
       </View>
-        <Text style={styles.header}>Recents</Text>
-        {recent.length!=0 ?(<View>
-          {recent.map((issue)=>{
-            let bgc:string = '';
-            if(issue.status == "Pending" ) bgc = "#d1b800ff"
-            if(issue.status == "Resolved") bgc = "#0b8900ff"
-            if(issue.status == "Rejected") bgc = "#ff0000ff"
-          return(
-            <View style={styles.recentCard} key={issue._id}>
-            <Text style={styles.recentHeading}>{issue.category}</Text>
-            <Text style={styles.recentDescription}>{issue.description}</Text>
-            <Text style={{...styles.recentStatus,backgroundColor:bgc}}>{issue.status}</Text>
-          </View>
-          )
-        })}
-        </View>):<Text>No Issue Reported 😔</Text>}
+      <Text style={styles.header}>Recents</Text>
+      {recent.length != 0 ? (
+        <View>
+          {recent.map((issue) => {
+            let bgc = "";
+            if (issue.status === "Pending") bgc = "#d1b800ff";
+            if (issue.status === "Resolved") bgc = "#0b8900ff";
+            if (issue.status === "Rejected") bgc = "#ff0000ff";
+
+            return (
+              <View style={styles.recentCard} key={issue._id}>
+                <Text style={styles.recentHeading}>{issue.category}</Text>
+                <Text style={styles.recentDescription}>
+                  {issue.description}
+                </Text>
+                <Text style={{ ...styles.recentStatus, backgroundColor: bgc }}>
+                  {issue.status}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <Text>No Issue Reported 😔</Text>
+      )}
       <TouchableOpacity
         style={[styles.button, { backgroundColor: "#e74c3c", marginTop: 20 }]}
         onPress={handleLogout}
@@ -261,26 +269,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f8f8ff",
     padding: 12,
     width: 320,
-    marginBottom:15
+    marginBottom: 15,
   },
-  recentHeading:{
+  recentHeading: {
     fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 8
+    marginBottom: 8,
   },
-  recentDescription:{
-    fontSize:12,
+  recentDescription: {
+    fontSize: 12,
     color: "#777777ff",
-    marginBottom: 8
+    marginBottom: 8,
   },
-  recentStatus:{
-    fontSize:13,
-    color:"#fff",
+  recentStatus: {
+    fontSize: 13,
+    color: "#fff",
     borderRadius: 15,
     backgroundColor: "#00cb11ff",
     width: 60,
     paddingHorizontal: 4,
-    paddingVertical:2,
-    textAlign:"center"
-  }
+    paddingVertical: 2,
+    textAlign: "center",
+  },
 });
