@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./BACKEND
+    container_name: backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./BACKEND:/BACKEND
+    environment:
+      - NODE_ENV=development
+    command: npm run start
+
+  frontend:
+    build: ./MyApp
+    container_name: myapp
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./MyApp:/MyApp
+    environment:
+      - NODE_ENV=development
+    command: npm run start
+
+    depends_on:
+      - backend
+
+  
