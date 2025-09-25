@@ -1,5 +1,5 @@
 // import { API_BASE_URL } from "@env";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import axios from "axios";
@@ -84,7 +84,7 @@ const Login = ({
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
       <Text style={styles.footerText}>
-        Don't have an account?{" "}
+        {"Don't have an account?"}{" "}
         <Text style={styles.linkText} onPress={handleRegister}>
           Sign up
         </Text>

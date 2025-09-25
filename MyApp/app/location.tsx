@@ -76,7 +76,7 @@ const Notifications = ({ userToken }: NotificationsProps) => {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [userToken]);
 
   return (
     <View style={styles.main}>

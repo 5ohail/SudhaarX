@@ -106,7 +106,7 @@ export default function Profile() {
       }
     };
     fetchStats();
-  }, [user]);
+  }, [user,userToken]);
   useEffect(() => {
     if (!user || !userToken) return;
 
@@ -188,7 +188,7 @@ export default function Profile() {
         </View>
       </View>
       <Text style={styles.header}>Recents</Text>
-      {recent.length != 0 ? (
+      {recent.length !== 0 ? (
         <View>
           {recent.map((issue) => {
             let bgc = "";
