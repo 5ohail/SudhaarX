@@ -12,7 +12,6 @@ import Toast, { BaseToast } from "react-native-toast-message";
 import Login from "@/components/Login";
 import Register from "@/components/Register";
 import axios from "axios";
-// import { STOCK_IMAGE } from "@env";
 const STOCK_IMAGE =
   "https://images.unsplash.com/photo-1750535135451-7c20e24b60c1?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDExfHx8ZW58MHx8fHx8";
 
@@ -211,7 +210,7 @@ export default function Profile() {
           })}
         </View>
       ) : (
-        <Text>No Issue Reported 😔</Text>
+        <Text style={{color:"#727272ff", fontWeight:300,fontSize:14}}>No Issue Reported 😔</Text>
       )}
       <TouchableOpacity
         style={[styles.button, { backgroundColor: "#e74c3c", marginTop: 20 }]}

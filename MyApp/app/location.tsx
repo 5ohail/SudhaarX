@@ -7,11 +7,12 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as Location from "expo-location";
-import axios from "axios"; // fixed
+import axios from "axios";
 import IssueCard from "@/components/IssueCard";
 
-const API_BASE_URL = 'http://172.16.43.91:3000/api'
-const IMAGE_URL = 'http://172.16.43.91:3000'
+const API_BASE_URL = "http://172.16.43.91:3000/api";
+const IMAGE_URL = "http://172.16.43.91:3000";
+
 interface NotificationsProps {
   userToken: string;
 }
@@ -21,6 +22,7 @@ const Notifications = ({ userToken }: NotificationsProps) => {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [locationName, setLocationName] = useState<string>("");
+
   useEffect(() => {
     (async () => {
       try {
@@ -57,7 +59,7 @@ const Notifications = ({ userToken }: NotificationsProps) => {
           }
         );
 
-        // Ensure image URLs are full
+        // Fix image URLs
         const issuesWithFullImages = (data.issues || []).map((issue: any) => ({
           ...issue,
           imageUrl: issue.imageUrl?.startsWith("http")
@@ -78,18 +80,22 @@ const Notifications = ({ userToken }: NotificationsProps) => {
 
   return (
     <View style={styles.main}>
-      <Text style={styles.heading}>
-        <Text style={styles.boldHeading}>Location: </Text>
-        {locationName || "N/A"}
-      </Text>
+      {/* Location Header */}
+      <View style={styles.headerBox}>
+        <Text style={styles.heading}>
+          <Text style={styles.boldHeading}>📍 Location: </Text>
+          {locationName || "N/A"}
+        </Text>
+      </View>
 
-      <ScrollView style={styles.container}>
+      {/* Issues List */}
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 50 }}>
         {loading ? (
-          <ActivityIndicator size="large" color="blue" style={{ marginTop: 20 }} />
+          <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 30 }} />
         ) : errorMsg ? (
-          <Text style={styles.error}>{errorMsg}</Text>
+          <Text style={styles.error}>⚠️ {errorMsg}</Text>
         ) : issues.length > 0 ? (
-          issues.map((issue,) => (
+          issues.map((issue) => (
             <IssueCard
               key={issue._id}
               imgUri={issue.imageUrl}
@@ -102,7 +108,7 @@ const Notifications = ({ userToken }: NotificationsProps) => {
             />
           ))
         ) : (
-          <Text style={styles.noData}>No issues found nearby</Text>
+          <Text style={styles.noData}>✨ No issues found nearby ✨</Text>
         )}
       </ScrollView>
     </View>
@@ -110,12 +116,34 @@ const Notifications = ({ userToken }: NotificationsProps) => {
 };
 
 const styles = StyleSheet.create({
-  main: { flex: 1, backgroundColor: "#fff" },
-  heading: { marginVertical: 10, marginLeft: 15 },
-  boldHeading: { fontWeight: "bold", fontSize: 14 },
-  container: { flex: 1, backgroundColor: "#fff", padding: 10 },
-  error: { color: "red", textAlign: "center", marginTop: 20 },
-  noData: { fontSize: 16, textAlign: "center", marginTop: 20 },
+  main: { flex: 1, backgroundColor: "#f9f9f9" },
+
+  headerBox: {
+    backgroundColor: "#ffffffff",
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    elevation: 4,
+  },
+  heading: { color: "#000000ff", fontSize: 15 },
+  boldHeading: { fontWeight: "bold", fontSize: 16, color: "#000000ff" },
+
+  container: { flex: 1, padding: 12 },
+
+  error: {
+    color: "red",
+    textAlign: "center",
+    marginTop: 25,
+    fontSize: 15,
+  },
+  noData: {
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 30,
+    color: "#666",
+    fontStyle: "italic",
+  },
 });
 
 export default Notifications;

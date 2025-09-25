@@ -13,16 +13,25 @@ interface IssueProps {
 }
 
 const truncate = (txt: string) => {
-  if (txt.length >= 50) return txt.slice(0, 46) + "....";
+  if (txt.length >= 60) return txt.slice(0, 56) + " ...";
   return txt;
 };
 
-const IssueCard = ({ category, imgUri, description, status, latitude, longitude, address }: IssueProps) => {
+const IssueCard = ({
+  category,
+  imgUri,
+  description,
+  status,
+  latitude,
+  longitude,
+  address,
+}: IssueProps) => {
   const router = useRouter();
+
   const getColor = (status: string) => {
-    if (status === "Resolved") return "green";
-    if (status === "Pending") return "#ff8000ff";
-    return "red";
+    if (status === "Resolved") return "#2ecc71"; // green
+    if (status === "Pending") return "#f39c12"; // orange
+    return "#e74c3c"; // red
   };
 
   const color = getColor(status);
@@ -36,20 +45,31 @@ const IssueCard = ({ category, imgUri, description, status, latitude, longitude,
             latitude: String(latitude),
             longitude: String(longitude),
             img: imgUri,
-            address: address,
+            address,
             category,
             description,
           },
         });
       }}
+      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={[styles.container, styles.shadow]}>
-        <Text style={styles.heading}>{category}</Text>
-        <View style={styles.flexContainer}>
-          <Text style={styles.paragraph}>{truncate(description)}</Text>
+        {/* Header row */}
+        <View style={styles.headerRow}>
+          <Text style={styles.category}>{category}</Text>
+          <Text style={[styles.status, { backgroundColor: color }]}>{status}</Text>
+        </View>
+
+        {/* Content row */}
+        <View style={styles.contentRow}>
+          <View style={styles.textBox}>
+            <Text style={styles.description}>{truncate(description)}</Text>
+            <Text style={styles.address} numberOfLines={1}>
+              📍 {address}
+            </Text>
+          </View>
           <Image source={{ uri: imgUri }} style={styles.img} />
         </View>
-        <Text style={{ ...styles.statusbar, backgroundColor: color }}>{status}</Text>
       </View>
     </Pressable>
   );
@@ -57,51 +77,63 @@ const IssueCard = ({ category, imgUri, description, status, latitude, longitude,
 
 export default IssueCard;
 
-
-
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    padding: 10,
-    margin: 10,
-    height: 150
-  },
-  heading: {
-    fontWeight: "bold",
-    fontSize: 16,
-    marginBottom: 2,
-    width : "65%", 
-    height: "30%"
-  },
-  flexContainer: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  paragraph: {
-    marginTop:2,
-    fontSize: 14,
-    width: "64%"
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 12,
+    marginVertical: 8,
   },
   shadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 5, // for Android
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  img:{
-    height: 95,
-    width: 95,
-    transform: [{translateY: -20},{translateX:-10}]
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
   },
-  statusbar:{
-    borderRadius: 20,
-    width: "25%",
-    color:"#fff",
-    textAlign:"center",
-    paddingVertical: 3,
+  category: {
+    fontWeight: "600",
+    fontSize: 16,
+    color: "#222",
+  },
+  status: {
+    color: "#fff",
+    fontWeight: "500",
     fontSize: 12,
-    transform:[{translateY:-15}]
-  }
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  contentRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  textBox: {
+    flex: 1,
+    marginRight: 10,
+  },
+  description: {
+    fontSize: 14,
+    color: "#444",
+    marginBottom: 6,
+  },
+  address: {
+    fontSize: 12,
+    color: "#777",
+  },
+  img: {
+    height: 80,
+    width: 80,
+    borderRadius: 10,
+    backgroundColor: "#f0f0f0",
+  },
 });
