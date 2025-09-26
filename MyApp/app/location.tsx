@@ -10,8 +10,8 @@ import * as Location from "expo-location";
 import axios from "axios";
 import IssueCard from "@/components/IssueCard";
 
-const API_BASE_URL = "http://172.16.43.91:3000/api";
-const IMAGE_URL = "http://172.16.43.91:3000";
+const API_BASE_URL = "http://10.200.20.217:3000/api";
+const IMAGE_URL = "http://10.200.20.217:3000";
 
 interface NotificationsProps {
   userToken: string;

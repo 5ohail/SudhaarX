@@ -21,7 +21,7 @@ interface LocationData {
   address: string;
 }
 
-const API_BASE_URL = "http://172.16.43.91:3000/api";
+const API_BASE_URL = "http://10.200.20.217:3000/api";
 
 const Reports = () => {
   const params = useLocalSearchParams();
