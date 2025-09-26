@@ -159,7 +159,7 @@ const Reports = () => {
   const renderStep2 = () => (
     <View>
       <Text style={styles.header}>Choose a Category</Text>
-      {["Street Light", "Potholes", "Garbage", "Sewerage", "Other"].map((cat) => (
+      {["Street Light", "Potholes", "Garbage", "Sewerage", "Miscellaneous"].map((cat) => (
         <TouchableOpacity
           key={cat}
           style={[styles.categoryBtn, category === cat && styles.categoryBtnActive]}
