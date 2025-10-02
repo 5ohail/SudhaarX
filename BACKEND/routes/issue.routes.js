@@ -36,7 +36,7 @@ router.post("/", upload.single("image"), async (req, res) => {
       longitude,
       address,
       reportedBy,
-      imageUrl: `/uploads/${req.file.filename}`, // ✅ Save URL
+      imageUrl: `/uploads/${req.file.filename}`,
     });
 
     res.status(201).json(newIssue);

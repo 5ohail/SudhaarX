@@ -7,7 +7,6 @@ import Footer from './Footer.jsx'
 import Hero from './Hero.jsx'
 import Issues  from './Issues.jsx'
 import {Routes,Route} from "react-router-dom"
-import AllIssues from "./AllIssues.jsx";
 import Contact from "./pages/Contact.jsx"
 
 function App() {
@@ -24,7 +23,6 @@ function App() {
     <Route path="/report" element={<Report/>}/>
     <Route path="/explore" element={<Explore/>}/>
     <Route path="/about" element={<About/>}/>
-    <Route path="/all-issues" element={<AllIssues />} />
      <Route path="/contact" element={<Contact/>} />
    </Routes>
 

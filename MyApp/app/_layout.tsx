@@ -57,6 +57,10 @@ export default function Layout() {
           name="map"
           options={{ title: "Directions", headerTitleAlign: "center", headerLeft: headerLogo }}
         />
+        <Stack.Screen
+        name="admin"
+        options={{ title: "Admin Panel", headerTitleAlign: "center", headerLeft: headerLogo }}
+      />
       </Stack>
       {!firstLaunch && <BottomNavbar />}
       </>

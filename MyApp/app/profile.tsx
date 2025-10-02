@@ -61,7 +61,7 @@ export default function Profile() {
   const [rejected, setRejected] = useState<number>(0);
   const [recent, setRecent] = useState<recentData[]>([]);
 
-  const BASEURL = "http://10.200.20.217:3000/api";
+  const BASEURL = "http://10.46.184.217:3000/api";
 
   useEffect(() => {
     const loadUser = async () => {

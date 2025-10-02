@@ -17,6 +17,7 @@ const BottomNavbar: React.FC = () => {
   { name: "Nearby Location", icon: "compass-outline", route: "/location" },
   { name: "Report", icon: "document-text-outline", route: "/reports" },
   { name: "Profile", icon: "person-outline", route: "/profile" },
+  { name: "Admin", icon: "shield-checkmark-outline", route: "/admin" }
 ];
 
   return (

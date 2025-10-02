@@ -21,7 +21,7 @@ interface LocationData {
   address: string;
 }
 
-const API_BASE_URL = "http://10.200.20.217:3000/api";
+const API_BASE_URL = "http://10.46.184.217:3000/api";
 
 const Reports = () => {
   const params = useLocalSearchParams();
@@ -76,6 +76,41 @@ const Reports = () => {
       setLocation({ latitude: coords.coords.latitude, longitude: coords.coords.longitude, address });
     } catch (err: any) {
       Alert.alert("Error", err.message);
+    }
+  };
+
+  // --- Auto Category Detection ---
+  const handleCategory = async () => {
+    if (!image && !description) {
+      setStep(2); // move ahead if no data
+      return;
+    }
+    try {
+      setLoading(true);
+
+      const formData = new FormData();
+      if (image) {
+        formData.append("file", {
+          uri: image.uri,
+          name: image.name,
+          type: image.type,
+        } as any);
+      }
+      formData.append("description", description);
+
+      const result = await axios.post("http://10.46.184.217:8000/classify", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log(result);
+
+      const categoryData = result.data.category;
+      setCategory(categoryData);
+      setStep(2);
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.message || err.message);
+      setStep(2);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -159,7 +194,7 @@ const Reports = () => {
   const renderStep2 = () => (
     <View>
       <Text style={styles.header}>Choose a Category</Text>
-      {["Street Light", "Potholes", "Garbage", "Sewerage", "Miscellaneous"].map((cat) => (
+      {["Malfunctioning Street Light", "Potholes", "Garbage", "Sewerage Issue", "Miscellaneous Issue"].map((cat) => (
         <TouchableOpacity
           key={cat}
           style={[styles.categoryBtn, category === cat && styles.categoryBtnActive]}
@@ -168,6 +203,11 @@ const Reports = () => {
           <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>{cat}</Text>
         </TouchableOpacity>
       ))}
+      {category ? (
+        <Text style={{ textAlign: "center", marginTop: 10, color: "#444" }}>
+          Auto-detected: {category}
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -199,7 +239,7 @@ const Reports = () => {
     <View style={styles.container}>
       {/* Step Status Bar */}
       <View style={styles.statusBarContainer}>
-        {[1, 2, 3,4].map((s) => (
+        {[1, 2, 3, 4].map((s) => (
           <View
             key={s}
             style={[
@@ -209,7 +249,6 @@ const Reports = () => {
           />
         ))}
       </View>
-      
 
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
@@ -225,9 +264,17 @@ const Reports = () => {
           )}
           <TouchableOpacity
             style={styles.navBtn}
-            onPress={() => (step === 3 ? handleSubmit() : setStep(step + 1))}
+            onPress={() =>
+              step === 1
+                ? handleCategory()
+                : step === 3
+                ? handleSubmit()
+                : setStep(step + 1)
+            }
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{step === 3 ? "Submit" : "Next"}</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>
+              {step === 3 ? "Submit" : "Next"}
+            </Text>}
           </TouchableOpacity>
         </View>
       )}
