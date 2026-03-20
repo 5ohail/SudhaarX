@@ -52,8 +52,8 @@ userRouter.post("/create", async (req, res) => {
   const { username, email, password } = req.body;
   const hashedPassword = bcrypt.hashSync(password, 10);
   const newUser = await User.create({
-    username,
-    email,
+    username: username.toLowerCase(),
+    email: email.toLowerCase(),
     password: hashedPassword,
   });
 
@@ -74,7 +74,7 @@ userRouter.post("/create", async (req, res) => {
 // Login
 userRouter.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: email.toLowerCase() });
   if (user && bcrypt.compareSync(password, user.password)) {
     const token = jwt.sign(
       { id: user._id, username: user.username },
@@ -83,7 +83,7 @@ userRouter.post("/login", async (req, res) => {
     );
     res
       .status(200)
-      .json({ message: "User found", user, token, ok: true });
+      .json({ message: "User found", user: { username: user.username, email: user.email, profileImage: user.profileImage }, token, ok: true });
   } else {
     res.status(404).json({ message: "User not found", ok: false });
   }

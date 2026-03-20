@@ -9,11 +9,20 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
+  SafeAreaView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// --- Configuration ---
+const API_BASE_URL = "http://10.193.108.217:3000/api";
+// NOTE: Move this to a .env file for production!
+const GEMINI_API_KEY = "AIzaSyA0nPHpbxImGI0BE6JRa_tm-1_uYKoBtGQ"; 
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 interface LocationData {
   latitude: number;
@@ -21,12 +30,18 @@ interface LocationData {
   address: string;
 }
 
-const API_BASE_URL = "http://10.46.184.217:3000/api";
+const CATEGORIES = [
+  "Malfunctioning Street Light",
+  "Potholes",
+  "Garbage",
+  "Sewerage Issue",
+  "Miscellaneous Issue",
+];
 
 const Reports = () => {
   const params = useLocalSearchParams();
   const [step, setStep] = useState(1);
-  const [image, setImage] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [image, setImage] = useState<{ uri: string; name: string; type: string; base64?: string } | null>(null);
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState((params.category as string) || "");
   const [location, setLocation] = useState<LocationData | null>(null);
@@ -34,7 +49,6 @@ const Reports = () => {
   const [manualLatitude, setManualLatitude] = useState("");
   const [manualLongitude, setManualLongitude] = useState("");
   const [loading, setLoading] = useState(false);
-  const BASEURL = API_BASE_URL;
 
   // --- Image Picker ---
   const pickImage = async () => {
@@ -46,15 +60,65 @@ const Reports = () => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.5,
+      base64: true,
     });
+
     if (!result.canceled) {
       const asset = result.assets[0];
       setImage({
         uri: asset.uri,
         name: asset.fileName || `photo_${Date.now()}.jpg`,
         type: "image/jpeg",
+        base64: asset.base64 || undefined,
       });
+    }
+  };
+
+  // --- Gemini AI Classification ---
+  const handleAiClassification = async () => {
+    if (!image?.base64) {
+      setStep(2);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Updated to gemini-1.5-flash for stability
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+      const prompt = `
+        Analyze this image of a municipal/civic problem. 
+        Categorize it into exactly one of these categories: ${CATEGORIES.join(", ")} or No Issue.
+        Description provided by user: "${description}"
+        Return ONLY the category name. If unsure, return "Miscellaneous Issue".
+      `;
+
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: image.base64,
+            mimeType: "image/jpeg",
+          },
+        },
+      ]);
+
+      const detectedCategory = result.response.text().trim();
+      
+      if (CATEGORIES.includes(detectedCategory)) {
+        setCategory(detectedCategory);
+      } else {
+        setCategory("No Issue");
+      }
+      
+      setStep(2);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert("AI Error", "Could not auto-detect category. Please select manually.");
+      setStep(2);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,7 +134,7 @@ const Reports = () => {
       const addr = await Location.reverseGeocodeAsync(coords.coords);
       const address =
         addr.length > 0
-          ? `${addr[0].name || ""}, ${addr[0].city || ""}, ${addr[0].region || ""}, ${addr[0].country || ""}`
+          ? `${addr[0].name || ""}, ${addr[0].city || ""}, ${addr[0].region || ""}`
           : "Unknown address";
 
       setLocation({ latitude: coords.coords.latitude, longitude: coords.coords.longitude, address });
@@ -79,72 +143,29 @@ const Reports = () => {
     }
   };
 
-  // --- Auto Category Detection ---
-  const handleCategory = async () => {
-    if (!image && !description) {
-      setStep(2); // move ahead if no data
-      return;
-    }
-    try {
-      setLoading(true);
-
-      const formData = new FormData();
-      if (image) {
-        formData.append("file", {
-          uri: image.uri,
-          name: image.name,
-          type: image.type,
-        } as any);
-      }
-      formData.append("description", description);
-
-      const result = await axios.post("http://10.46.184.217:8000/classify", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      console.log(result);
-
-      const categoryData = result.data.category;
-      setCategory(categoryData);
-      setStep(2);
-    } catch (err: any) {
-      Alert.alert("Error", err.response?.data?.message || err.message);
-      setStep(2);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- Submit ---
+  // --- Final Submit ---
   const handleSubmit = async () => {
     try {
       setLoading(true);
       const userStr = await AsyncStorage.getItem("user");
       const parsedUser = userStr ? JSON.parse(userStr) : null;
-      if (!parsedUser) {
-        router.push("/profile");
-        return;
-      }
-
-      const locData =
-        location ||
-        (manualAddress && manualLatitude && manualLongitude
-          ? {
-              address: manualAddress,
-              latitude: parseFloat(manualLatitude),
-              longitude: parseFloat(manualLongitude),
-            }
-          : null);
+      
+      const locData = location || (manualAddress ? {
+        address: manualAddress,
+        latitude: parseFloat(manualLatitude),
+        longitude: parseFloat(manualLongitude),
+      } : null);
 
       if (!locData) throw new Error("Please provide location.");
 
       const formData = new FormData();
-      formData.append("title", description.substring(0, 20) || "Untitled");
+      formData.append("title", description.substring(0, 20) || "Civic Issue");
       formData.append("description", description);
       formData.append("category", category);
       formData.append("latitude", String(locData.latitude));
       formData.append("longitude", String(locData.longitude));
       formData.append("address", locData.address);
-      formData.append("reportedBy", parsedUser.username);
+      formData.append("reportedBy", parsedUser?.username || "Anonymous");
 
       if (image) {
         formData.append("image", {
@@ -154,7 +175,7 @@ const Reports = () => {
         } as any);
       }
 
-      await axios.post(`${BASEURL}/issues`, formData, {
+      await axios.post(`${API_BASE_URL}/issues`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -166,7 +187,6 @@ const Reports = () => {
     }
   };
 
-  // Redirect after success
   useEffect(() => {
     if (step === 4) {
       const timer = setTimeout(() => router.push("/location"), 2000);
@@ -174,16 +194,16 @@ const Reports = () => {
     }
   }, [step]);
 
-  // --- UI ---
+  // --- UI Renders ---
   const renderStep1 = () => (
     <View>
-      <Text style={styles.header}>Upload a Photo</Text>
+      <Text style={styles.header}>Step 1: Capture Issue</Text>
       <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
-        {image ? <Image source={{ uri: image.uri }} style={styles.previewImage} /> : <Text>📷 Tap to capture</Text>}
+        {image ? <Image source={{ uri: image.uri }} style={styles.previewImage} /> : <Text>📷 Tap to take a photo</Text>}
       </TouchableOpacity>
       <TextInput
-        style={styles.input}
-        placeholder="Describe the issue..."
+        style={[styles.input, { height: 100 }]}
+        placeholder="Briefly describe what's wrong..."
         value={description}
         onChangeText={setDescription}
         multiline
@@ -193,8 +213,8 @@ const Reports = () => {
 
   const renderStep2 = () => (
     <View>
-      <Text style={styles.header}>Choose a Category</Text>
-      {["Malfunctioning Street Light", "Potholes", "Garbage", "Sewerage Issue", "Miscellaneous Issue"].map((cat) => (
+      <Text style={styles.header}>Step 2: Category</Text>
+      {CATEGORIES.map((cat) => (
         <TouchableOpacity
           key={cat}
           style={[styles.categoryBtn, category === cat && styles.categoryBtnActive]}
@@ -203,129 +223,95 @@ const Reports = () => {
           <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>{cat}</Text>
         </TouchableOpacity>
       ))}
-      {category ? (
-        <Text style={{ textAlign: "center", marginTop: 10, color: "#444" }}>
-          Auto-detected: {category}
-        </Text>
-      ) : null}
     </View>
   );
 
   const renderStep3 = () => (
     <View>
-      <Text style={styles.header}>Location</Text>
+      <Text style={styles.header}>Step 3: Location</Text>
       <TouchableOpacity style={styles.locBtn} onPress={getLocation}>
-        <Text style={styles.locText}>📍 Use GPS</Text>
+        <Text style={styles.locText}>📍 Use GPS Location</Text>
       </TouchableOpacity>
-      {location && <Text style={styles.locationPreview}>{location.address}</Text>}
-      <TextInput style={styles.input} placeholder="Enter address" value={manualAddress} onChangeText={setManualAddress} />
-      <TextInput style={styles.input} placeholder="Latitude" value={manualLatitude} onChangeText={setManualLatitude} keyboardType="numeric" />
-      <TextInput style={styles.input} placeholder="Longitude" value={manualLongitude} onChangeText={setManualLongitude} keyboardType="numeric" />
+      {location && <Text style={styles.locationPreview}>Detected: {location.address}</Text>}
+      <TextInput style={styles.input} placeholder="Or enter address manually" value={manualAddress} onChangeText={setManualAddress} />
     </View>
   );
 
   const renderStep4 = () => (
     <View style={styles.centered}>
       <Text style={styles.successIcon}>✅</Text>
-      <Text style={styles.successText}>Issue Reported!</Text>
-      {image && <Image source={{ uri: image.uri }} style={styles.previewImage} />}
-      <Text style={styles.review}>📄 {description}</Text>
-      <Text style={styles.review}>📌 {category}</Text>
-      <Text style={styles.review}>📍 {location?.address || manualAddress}</Text>
+      <Text style={styles.successText}>Report Submitted!</Text>
+      <Text style={styles.reviewText}>Our team will look into this shortly.</Text>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      {/* Step Status Bar */}
+    <SafeAreaView style={styles.container}>
+      {/* Progress Bar */}
       <View style={styles.statusBarContainer}>
         {[1, 2, 3, 4].map((s) => (
-          <View
-            key={s}
-            style={[
-              styles.statusStep,
-              step >= s ? styles.statusStepActive : styles.statusStepInactive,
-            ]}
-          />
+          <View key={s} style={[styles.statusStep, step >= s ? styles.statusStepActive : styles.statusStepInactive]} />
         ))}
       </View>
 
-      {step === 1 && renderStep1()}
-      {step === 2 && renderStep2()}
-      {step === 3 && renderStep3()}
-      {step === 4 && renderStep4()}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+        {step === 1 && renderStep1()}
+        {step === 2 && renderStep2()}
+        {step === 3 && renderStep3()}
+        {step === 4 && renderStep4()}
+      </ScrollView>
 
       {step < 4 && (
         <View style={styles.navigationRow}>
           {step > 1 && (
-            <TouchableOpacity style={[styles.navBtn, styles.prevBtn]} onPress={() => setStep(step - 1)}>
-              <Text style={styles.btnText}>Back</Text>
+            <TouchableOpacity 
+              style={[styles.navBtn, styles.prevBtn]} 
+              onPress={() => setStep(step - 1)}
+            >
+              <Text style={[styles.btnText, styles.prevBtnText]}>Back</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
             style={styles.navBtn}
+            disabled={loading}
             onPress={() =>
-              step === 1
-                ? handleCategory()
-                : step === 3
-                ? handleSubmit()
-                : setStep(step + 1)
+              step === 1 ? handleAiClassification() : step === 3 ? handleSubmit() : setStep(step + 1)
             }
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>
-              {step === 3 ? "Submit" : "Next"}
-            </Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{step === 3 ? "Submit Report" : "Next"}</Text>}
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#F9FAFB" },
-  statusBarContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 15,
-    marginHorizontal: 30,
-  },
-  statusStep: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    marginHorizontal: 4,
-  },
-  statusStepActive: { backgroundColor: "#ff0000ff" },
-  statusStepInactive: { backgroundColor: "#ddd" },
-  header: { fontSize: 20, fontWeight: "600", marginBottom: 15, textAlign: "center", color: "#111" },
-  uploadBox: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    height: 160,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  previewImage: { width: "100%", height: 200, borderRadius: 10, marginTop: 10 },
-  input: { backgroundColor: "#fff", borderRadius: 10, padding: 12, marginVertical: 8, borderWidth: 1, borderColor: "#ddd" },
-  categoryBtn: { padding: 14, borderRadius: 10, backgroundColor: "#fff", marginBottom: 10, borderWidth: 1, borderColor: "#ddd" },
-  categoryBtnActive: { backgroundColor: "#008545" },
-  categoryText: { textAlign: "center", fontSize: 16, color: "#333" },
-  categoryTextActive: { color: "#fff", fontWeight: "600" },
-  locBtn: { padding: 14, backgroundColor: "#008545", borderRadius: 10, alignItems: "center", marginBottom: 10 },
-  locText: { color: "#fff", fontWeight: "600" },
-  locationPreview: { textAlign: "center", marginBottom: 10, color: "#444" },
-  navigationRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
-  navBtn: { flex: 1, padding: 14, backgroundColor: "#008545", borderRadius: 10, alignItems: "center", marginHorizontal: 5 },
-  prevBtn: { backgroundColor: "#aaa" },
-  btnText: { color: "#fff", fontWeight: "600" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  successIcon: { fontSize: 60, marginBottom: 10 },
-  successText: { fontSize: 22, fontWeight: "bold", color: "#008545", marginBottom: 15 },
-  review: { fontSize: 14, color: "#444", marginTop: 5 },
+  statusBarContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, marginTop: 20 },
+  statusStep: { flex: 1, height: 4, borderRadius: 2, marginHorizontal: 2 },
+  statusStepActive: { backgroundColor: "#008545" },
+  statusStepInactive: { backgroundColor: "#E5E7EB" },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 20, color: "#111" },
+  uploadBox: { borderWidth: 2, borderStyle: 'dashed', borderColor: "#D1D5DB", height: 200, borderRadius: 15, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", marginBottom: 20, overflow: 'hidden' },
+  previewImage: { width: "100%", height: "100%" },
+  input: { backgroundColor: "#fff", borderRadius: 12, padding: 15, marginVertical: 10, borderWidth: 1, borderColor: "#E5E7EB", textAlignVertical: 'top' },
+  categoryBtn: { padding: 16, borderRadius: 12, backgroundColor: "#fff", marginBottom: 12, borderWidth: 1, borderColor: "#E5E7EB" },
+  categoryBtnActive: { backgroundColor: "#008545", borderColor: "#008545" },
+  categoryText: { fontSize: 16, color: "#374151", fontWeight: '500' },
+  categoryTextActive: { color: "#fff" },
+  locBtn: { padding: 16, backgroundColor: "#3B82F6", borderRadius: 12, alignItems: "center", marginBottom: 15 },
+  locText: { color: "#fff", fontWeight: "bold" },
+  locationPreview: { textAlign: "center", marginBottom: 10, color: "#6B7280", fontStyle: 'italic' },
+  navigationRow: { flexDirection: "row", marginTop: 10, paddingBottom: 30 },
+  navBtn: { flex: 2, padding: 16, backgroundColor: "#008545", borderRadius: 12, alignItems: "center", justifyContent: 'center' },
+  prevBtn: { flex: 1, backgroundColor: "#fff", borderWidth: 1, borderColor: "#D1D5DB", marginRight: 10 },
+  btnText: { color: "#ffffff", fontWeight: "bold", fontSize: 16 },
+  prevBtnText: { color: "#374151" }, // Added to make 'Back' text visible
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 100 },
+  successIcon: { fontSize: 80, marginBottom: 20 },
+  successText: { fontSize: 24, fontWeight: "bold", color: "#008545" },
+  reviewText: { color: "#6B7280", marginTop: 10 },
 });
 
 export default Reports;

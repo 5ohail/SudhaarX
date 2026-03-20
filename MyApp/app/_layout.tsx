@@ -61,8 +61,14 @@ export default function Layout() {
         name="admin"
         options={{ title: "Admin Panel", headerTitleAlign: "center", headerLeft: headerLogo }}
       />
+       <Stack.Screen
+          name="trace"
+          options={{ title: "Trace Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+        />
       </Stack>
+       
       {!firstLaunch && <BottomNavbar />}
+      
       </>
   );
 }

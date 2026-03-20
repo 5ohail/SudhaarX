@@ -4,14 +4,19 @@ import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import axios from "axios";
 
-const BASE_URL =  'http://10.46.184.217:3000/api' // ✅ fallback
-
+const BASE_URL =  'http://10.193.108.217:3000/api' // ✅ fallback
+interface userProps {
+  username: string;
+  email: string;
+  userRole: string;
+}
 const Login = ({
   user,
   login,
 }: {
-  user: (value: any) => void;
+  user: (value: userProps) => void;
   login: (value: boolean) => void;
+  isAdmin?: (value: boolean) => void;
 }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

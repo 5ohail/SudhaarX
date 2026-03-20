@@ -2,28 +2,66 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BottomNavbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [activeRoute, setActiveRoute] = useState(pathname);
+
+  const [activeRoute, setActiveRoute] = useState("/");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    setActiveRoute(pathname.split("/")[1] ? `/${pathname.split("/")[1]}` : "/");
+    setActiveRoute(
+      pathname.split("/")[1] ? `/${pathname.split("/")[1]}` : "/"
+    );
   }, [pathname]);
 
-  const tabs: { name: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
-  { name: "Home", icon: "home-outline", route: "/" },
-  { name: "Nearby Location", icon: "compass-outline", route: "/location" },
-  { name: "Report", icon: "document-text-outline", route: "/reports" },
-  { name: "Profile", icon: "person-outline", route: "/profile" },
-  { name: "Admin", icon: "shield-checkmark-outline", route: "/admin" }
-];
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const userData = await AsyncStorage.getItem("user");
+      if (!userData) return;
+
+      const user = JSON.parse(userData);
+
+      // supports both role & boolean flag
+      if (user.userType === "admin") {
+        setIsAdmin(true);
+      }
+    };
+
+    checkAdmin();
+  }, []);
+
+  const tabs = [
+    { name: "Home", icon: "home-outline", route: "/" },
+    { name: "Nearby", icon: "compass-outline", route: "/location" },
+    { name: "Report", icon: "document-text-outline", route: "/reports" },
+    {name: "Trace", icon: "map-outline", route: "/trace"},
+    { name: "Profile", icon: "person-outline", route: "/profile" },
+    
+
+    // 👇 Admin tab only if admin
+    ...(isAdmin
+      ? [
+          {
+            name: "Admin",
+            icon: "shield-checkmark-outline",
+            route: "/admin",
+          },
+        ]
+      : []),
+  ] as {
+    name: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    route: string;
+  }[];
 
   return (
     <View style={styles.container}>
       {tabs.map((tab) => {
         const isActive = activeRoute === tab.route;
+
         return (
           <TouchableOpacity
             key={tab.name}
@@ -52,7 +90,10 @@ const styles = StyleSheet.create({
     borderTopColor: "#ddd",
     backgroundColor: "#fff",
   },
-  tab: { flex: 1, alignItems: "center" },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+  },
 });
 
 export default BottomNavbar;

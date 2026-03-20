@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import axios from "axios";
-const BASE_URL = 'http://10.46.184.217:3000/api'
+const BASE_URL = 'http://10.193.108.217:3000/api'
 const Register = ({
   user,
   login,
@@ -40,6 +40,7 @@ const Register = ({
         text2: "You can now log in with your account",
       });
     } catch (err: any) {
+      console.log("Registration error:", err);
       const errorMsg = err.response?.data?.message || "Please try again";
       Toast.show({
         type: "error",

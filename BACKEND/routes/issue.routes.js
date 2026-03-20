@@ -44,6 +44,14 @@ router.post("/", upload.single("image"), async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+router.get("/", async (req, res) => {
+  try {
+    const issues = await issueModel.find({});
+    res.status(200).json(issues);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // POST /api/issues/getData
 router.post("/getData", async (req, res) => {

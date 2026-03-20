@@ -61,7 +61,7 @@ export default function Profile() {
   const [rejected, setRejected] = useState<number>(0);
   const [recent, setRecent] = useState<recentData[]>([]);
 
-  const BASEURL = "http://10.46.184.217:3000/api";
+  const BASEURL = "http://10.193.108.217:3000/api";
 
   useEffect(() => {
     const loadUser = async () => {
@@ -147,7 +147,7 @@ export default function Profile() {
         ) : (
           <View style={{ flex: 1, backgroundColor: "#fff" }}>
             <Register
-              user={(val: any) => handleLogin(val.user, val.user.token)}
+              user={(val: any) => handleLogin(val.user, val.token)}
               login={setLogIn}
             />
           </View>
