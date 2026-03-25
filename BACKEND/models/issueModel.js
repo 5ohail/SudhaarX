@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
  const IssueSchema = new mongoose.Schema({
   title: { type: String, required: true },
-  description: { type: String, required: true },
+  description: { type: String, required: false, default: "" },
   imageUrl: { type: String, required: true },
   category: { type: String, required: true },
   status: { type: String, enum: ["Pending", "Resolved", "Rejected"], default: "Pending" },
