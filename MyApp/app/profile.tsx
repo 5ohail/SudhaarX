@@ -61,7 +61,7 @@ export default function Profile() {
   const [rejected, setRejected] = useState<number>(0);
   const [recent, setRecent] = useState<recentData[]>([]);
 
-  const BASEURL = "http://10.137.19.217:3000/api";
+  const BASEURL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
   useEffect(() => {
     const loadUser = async () => {

@@ -13,8 +13,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import IssueCard from "@/components/IssueCard";
 
-const API_BASE_URL = "http://10.137.19.217:3000/api";
-const IMAGE_URL = "http://10.137.19.217:3000";
+const API_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const IMAGE_URL = process.env.EXPO_PUBLIC_IMAGE_URL || "";
 
 const Admin = () => {
   const [admin, setAdmin] = useState<any>(null);

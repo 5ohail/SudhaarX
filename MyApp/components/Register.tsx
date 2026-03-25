@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import axios from "axios";
-const BASE_URL = 'http://10.137.19.217:3000/api'
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const Register = ({
   user,
   login,

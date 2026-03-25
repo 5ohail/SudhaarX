@@ -3,6 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, View, StyleSheet } from "react-native";
+// 1. Import the Provider
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function Layout() {
   const [loading, setLoading] = useState(true);
@@ -34,42 +36,20 @@ export default function Layout() {
   );
 
   return (
-    <>
+    // 2. Wrap everything in SafeAreaProvider
+    <SafeAreaProvider>
       <Stack initialRouteName={firstLaunch ? "onBoarding" : "index"}>
+        {/* ... your Stack.Screens stay the same ... */}
         <Stack.Screen name="onBoarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="index"
           options={{ title: "Civic Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
         />
-        <Stack.Screen
-          name="reports"
-          options={{ title: "Reports", headerTitleAlign: "center", headerLeft: headerLogo }}
-        />
-        <Stack.Screen
-          name="location"
-          options={{ title: "Nearby Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
-        />
-        <Stack.Screen
-          name="profile"
-          options={{ title: "Profile", headerTitleAlign: "center", headerLeft: headerLogo }}
-        />
-        <Stack.Screen
-          name="map"
-          options={{ title: "Directions", headerTitleAlign: "center", headerLeft: headerLogo }}
-        />
-        <Stack.Screen
-        name="admin"
-        options={{ title: "Admin Panel", headerTitleAlign: "center", headerLeft: headerLogo }}
-      />
-       <Stack.Screen
-          name="trace"
-          options={{ title: "Trace Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
-        />
+        {/* ... etc ... */}
       </Stack>
-       
-      {!firstLaunch && <BottomNavbar />}
       
-      </>
+      {!firstLaunch && <BottomNavbar />}
+    </SafeAreaProvider>
   );
 }
 

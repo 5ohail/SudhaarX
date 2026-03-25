@@ -19,7 +19,7 @@ import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- Configuration ---
-const API_BASE_URL = "http://10.137.19.217:3000/api";
+const API_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || ''; // Fallback for local development
 // NOTE: Move this to a .env file for production!
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 

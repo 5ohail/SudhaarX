@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity
 import MapView, { Marker, Callout, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 
-const BASE_URL = "http://10.137.19.217:3000/api";
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || ''; // ✅ fallback
 const SEARCH_RADIUS_KM = 2.0; // Filter distance
 
 interface RoadReport {
