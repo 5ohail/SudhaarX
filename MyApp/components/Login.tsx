@@ -4,7 +4,7 @@ import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import axios from "axios";
 
-const BASE_URL =  'http://10.193.108.217:3000/api' // ✅ fallback
+const BASE_URL =  'http://10.137.19.217:3000/api' // ✅ fallback
 interface userProps {
   username: string;
   email: string;
