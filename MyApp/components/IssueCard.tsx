@@ -10,6 +10,10 @@ interface IssueProps {
   status: string;
   latitude: number;
   longitude: number;
+  // NEW PROPS
+  createdAt: Date; // Date the issue was reported
+  assignedWorker?: string; // Optional name
+  severity: number; // 1 (Minor) to 5 (Critical)
 }
 
 const truncate = (txt: string) => {
@@ -25,16 +29,29 @@ const IssueCard = ({
   latitude,
   longitude,
   address,
+  createdAt,
+  assignedWorker,
+  severity,
 }: IssueProps) => {
   const router = useRouter();
 
+  // Logic for dynamic resolution time
+  const getEstimatedTime = (sev: number) => {
+    if (status === "Resolved") return "Resolved";
+    if (sev >= 5) return "4-7 Days (High Priority)";
+    if (sev >= 3) return "2-3 Days";
+    return "24 Hours";
+  };
+
   const getColor = (status: string) => {
-    if (status === "Resolved") return "#2ecc71"; // green
-    if (status === "Pending") return "#f39c12"; // orange
-    return "#e74c3c"; // red
+    if (status === "Resolved") return "#2ecc71";
+    if (status === "Pending") return "#f39c12";
+    return "#e74c3c";
   };
 
   const color = getColor(status);
+  const timeLabel = getEstimatedTime(severity);
+  const formattedDate = new Date(createdAt).toLocaleDateString();
 
   return (
     <Pressable
@@ -56,7 +73,10 @@ const IssueCard = ({
       <View style={[styles.container, styles.shadow]}>
         {/* Header row */}
         <View style={styles.headerRow}>
-          <Text style={styles.category}>{category}</Text>
+          <View>
+            <Text style={styles.category}>{category}</Text>
+            <Text style={styles.timestamp}>Reported: {formattedDate}</Text>
+          </View>
           <Text style={[styles.status, { backgroundColor: color }]}>{status}</Text>
         </View>
 
@@ -64,6 +84,15 @@ const IssueCard = ({
         <View style={styles.contentRow}>
           <View style={styles.textBox}>
             <Text style={styles.description}>{truncate(description)}</Text>
+            
+            <View style={styles.infoRow}>
+               <Text style={styles.infoText}>👷 {assignedWorker || "No worker assigned"}</Text>
+            </View>
+
+            <View style={styles.infoRow}>
+               <Text style={styles.infoText}>⏳ Est: {timeLabel}</Text>
+            </View>
+
             <Text style={styles.address} numberOfLines={1}>
               📍 {address}
             </Text>
@@ -95,27 +124,33 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
+    alignItems: "flex-start",
+    marginBottom: 8,
   },
   category: {
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 16,
     color: "#222",
   },
+  timestamp: {
+    fontSize: 11,
+    color: "#999",
+    marginTop: 2,
+  },
   status: {
     color: "#fff",
-    fontWeight: "500",
-    fontSize: 12,
+    fontWeight: "600",
+    fontSize: 11,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 20,
     overflow: "hidden",
+    textTransform: "uppercase",
   },
   contentRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-end", // Align image with the bottom of the text
   },
   textBox: {
     flex: 1,
@@ -124,15 +159,24 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 14,
     color: "#444",
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  infoRow: {
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: 12,
+    color: "#555",
+    fontWeight: "500",
   },
   address: {
     fontSize: 12,
     color: "#777",
+    marginTop: 4,
   },
   img: {
-    height: 80,
-    width: 80,
+    height: 90,
+    width: 90,
     borderRadius: 10,
     backgroundColor: "#f0f0f0",
   },

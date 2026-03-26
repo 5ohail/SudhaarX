@@ -49,12 +49,13 @@ userRouter.post("/", async (req, res) => {
 
 // Create user
 userRouter.post("/create", async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, phone } = req.body;
   const hashedPassword = bcrypt.hashSync(password, 10);
   const newUser = await User.create({
     username: username.toLowerCase(),
     email: email.toLowerCase(),
     password: hashedPassword,
+    phone: phone,
   });
 
   if (newUser) {
@@ -83,7 +84,7 @@ userRouter.post("/login", async (req, res) => {
     );
     res
       .status(200)
-      .json({ message: "User found", user: { username: user.username, email: user.email, profileImage: user.profileImage }, token, ok: true });
+      .json({ message: "User found", user: { username: user.username, email: user.email, profileImage: user.profileImage, phone: user.phone,userType: user.userType }, token, ok: true });
   } else {
     res.status(404).json({ message: "User not found", ok: false });
   }
@@ -133,5 +134,11 @@ userRouter.get("/:username", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
+userRouter.get("/profile/:id", async (req, res) => {
+  try {    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });  
+    res.json({  username: user.username,    email: user.email,    profileImage: user.profileImage || null,    phone: user.phone || null,  });
+  } catch (err) {    res.status(500).json({ message: "Server error" });  }
+}
+);
 export default userRouter;

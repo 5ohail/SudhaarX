@@ -13,9 +13,9 @@ const Register = ({
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
+  const [phone, setPhone] = useState("");
   const handleRegister = async () => {
-    if (!email || !username || !password) {
+    if (!email || !username || !password || !phone) {
       Toast.show({
         type: "error",
         text1: "Missing fields",
@@ -29,6 +29,7 @@ const Register = ({
         email,
         username,
         password,
+        phone,
       });
 
       user(response.data.user);
@@ -61,6 +62,12 @@ const Register = ({
         value={email}
         onChangeText={setEmail}
         placeholder="Email"
+        style={styles.input}
+      />
+       <TextInput
+        value={phone}
+        onChangeText={setPhone}
+        placeholder="Phone"
         style={styles.input}
       />
       <TextInput

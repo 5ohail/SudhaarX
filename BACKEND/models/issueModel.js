@@ -10,6 +10,10 @@ import mongoose from "mongoose";
   longitude: { type: Number, required: true },
   address: { type: String, required: true },
   reportedBy: { type: String, required: true }, // userId reference
+  severity: { type: Number, required: true, min: 1, max: 5 },
+  estimatedTime: { type: String, required: false }, // e.g., "2 days", "1 week" 
+  workerAssigned: { type: String, required: false}, // workerId reference
+  AssignedAt: { type: Date, required: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

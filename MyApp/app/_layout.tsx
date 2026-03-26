@@ -1,5 +1,4 @@
 import BottomNavbar from "@/components/Navbar";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, View, StyleSheet } from "react-native";
@@ -8,24 +7,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function Layout() {
   const [loading, setLoading] = useState(true);
-  const [firstLaunch, setFirstLaunch] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      const hasSeen = await AsyncStorage.getItem("hasSeenOnboarding");
-      setFirstLaunch(hasSeen === null);
-      setLoading(false);
-    };
-    checkOnboarding();
-  }, []);
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="green" />
-      </View>
-    );
-  }
 
   const headerLogo = () => (
     <Image
@@ -38,17 +19,41 @@ export default function Layout() {
   return (
     // 2. Wrap everything in SafeAreaProvider
     <SafeAreaProvider>
-      <Stack initialRouteName={firstLaunch ? "onBoarding" : "index"}>
+      <Stack initialRouteName={"index"}>
         {/* ... your Stack.Screens stay the same ... */}
         <Stack.Screen name="onBoarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="index"
           options={{ title: "Civic Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
         />
-        {/* ... etc ... */}
+        <Stack.Screen
+          name="nearbyIssues"
+          options={{ title: "Nearby Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+        />
+         <Stack.Screen
+          name="reports"
+          options={{ title: "Report An issue", headerTitleAlign: "center", headerLeft: headerLogo }}
+        />
+        <Stack.Screen
+          name="trace"
+          options={{ title: "Trace Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+        />
+        <Stack.Screen
+          name="profile"
+          options={{ title: "Profile", headerTitleAlign: "center", headerLeft: headerLogo }}
+        />
+        <Stack.Screen
+          name="assignWorker"
+          options={{ title: "Assign Worker", headerTitleAlign: "center", headerLeft: headerLogo }}
+        />
+        <Stack.Screen
+          name="resolveIssues"
+          options={{ title: "Resolve Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+        />
+
       </Stack>
       
-      {!firstLaunch && <BottomNavbar />}
+       <BottomNavbar />
     </SafeAreaProvider>
   );
 }

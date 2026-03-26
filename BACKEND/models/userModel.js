@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   userType: { type: String, enum: ['user', 'admin','superAdmin'], default: 'user' },
+  phone: { type: String, minlength: 10, required: true },
+  isBanned: { type: Boolean, default: false },
   createdOn: { type: Date, default: Date.now },
 });
 
