@@ -9,7 +9,7 @@ const BottomNavbar: React.FC = () => {
   const pathname = usePathname();
 
   const [activeRoute, setActiveRoute] = useState("/");
-  const [isAdmin, setIsAdmin] = useState(true); // Default to false
+  const [isAdmin, setIsAdmin] = useState(false); // Default to false
 
   useEffect(() => {
     setActiveRoute(

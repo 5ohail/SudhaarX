@@ -12,6 +12,7 @@ import Toast, { BaseToast } from "react-native-toast-message";
 import Login from "@/components/Login";
 import Register from "@/components/Register";
 import axios from "axios";
+
 const STOCK_IMAGE =
   "https://images.unsplash.com/photo-1750535135451-7c20e24b60c1?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDExfHx8ZW58MHx8fHx8";
 
@@ -44,9 +45,9 @@ interface recentData {
   latitude: number;
   longitude: number;
   reportedBy: string;
-  status: "Pending" | "Resolved" | "Rejected"; // expand if needed
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  status: "Pending" | "Resolved" | "Rejected";
+  createdAt: string;
+  updatedAt: string;
   __v: number;
 }
 
@@ -63,59 +64,88 @@ export default function Profile() {
 
   const BASEURL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
+  // 1. Initial Load: Only set state if values actually exist
   useEffect(() => {
     const loadUser = async () => {
-      const savedUser = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("userToken");
-      if (savedUser && token) {
-        const parsed = JSON.parse(savedUser);
-        setUser(parsed);
-        setProfileImage(parsed.profileImage || STOCK_IMAGE);
-        setUserToken(token);
-        setLogIn(true);
+      try {
+        const savedUser = await AsyncStorage.getItem("user");
+        const token = await AsyncStorage.getItem("userToken");
+        if (savedUser && token) {
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+          setProfileImage(parsed.profileImage || STOCK_IMAGE);
+          setUserToken(token);
+          setLogIn(true);
+        }
+      } catch (e) {
+        console.error("Failed to load user from storage", e);
       }
     };
     loadUser();
   }, []);
+
+  // 2. Handle Login: Robust safety check for undefined
   const handleLogin = async (loggedInUser: any, token: string) => {
+    if (!loggedInUser || !token) {
+      console.error("Login failed: User or Token is undefined");
+      return;
+    }
+
     setUser(loggedInUser);
     setUserToken(token);
     setProfileImage(loggedInUser.profileImage || STOCK_IMAGE);
-    await AsyncStorage.setItem("user", JSON.stringify(loggedInUser));
-    await AsyncStorage.setItem("userToken", token);
-    setLogIn(true);
+
+    try {
+      await AsyncStorage.setItem("user", JSON.stringify(loggedInUser));
+      await AsyncStorage.setItem("userToken", token);
+      setLogIn(true);
+    } catch (e) {
+      console.error("Error saving user data", e);
+    }
   };
 
+  // 3. User Sync Effect: Cleaned up to avoid passing undefined
   useEffect(() => {
-    if (user) AsyncStorage.setItem("user", JSON.stringify(user));
-    else AsyncStorage.removeItem("user");
+    const syncUser = async () => {
+      if (user) {
+        await AsyncStorage.setItem("user", JSON.stringify(user));
+      } else {
+        // Instead of setting "null", we remove the key entirely
+        await AsyncStorage.removeItem("user");
+      }
+    };
+    syncUser();
   }, [user]);
+
+  // 4. Fetch Stats
   useEffect(() => {
-    if (!user || !userToken) return;
+    if (!user?.username || !userToken) return;
     const fetchStats = async () => {
       try {
         const { data } = await axios.post(`${BASEURL}/issues/getData`, {
           username: user.username,
-        }); // { total, pending, resolved, rejected }
-        setPending(data.pending);
-        setTotal(data.total);
-        setResolved(data.resolved);
-        setRejected(data.rejected);
+        });
+        setPending(data.pending || 0);
+        setTotal(data.total || 0);
+        setResolved(data.resolved || 0);
+        setRejected(data.rejected || 0);
       } catch (err) {
         console.error("Error fetching issue stats:", err);
       }
     };
     fetchStats();
-  }, [user,userToken]);
+  }, [user, userToken]);
+
+  // 5. Fetch Recents
   useEffect(() => {
-    if (!user || !userToken) return;
+    if (!user?.username || !userToken) return;
 
     const fetchRecents = async () => {
       try {
         const { data } = await axios.post(`${BASEURL}/issues/recent`, {
           username: user.username,
         });
-        setRecent(data); // assuming API returns an array
+        setRecent(Array.isArray(data) ? data : []);
       } catch (error) {
         console.log("Error fetching recents:", error);
       }
@@ -128,10 +158,14 @@ export default function Profile() {
     setUser(null);
     setProfileImage(STOCK_IMAGE);
     setUserToken(null);
-    await AsyncStorage.removeItem("user");
-    await AsyncStorage.removeItem("userToken");
-    setLogIn(false);
-    Toast.show({ type: "success", text1: "Logged out" });
+    try {
+      await AsyncStorage.removeItem("user");
+      await AsyncStorage.removeItem("userToken");
+      setLogIn(false);
+      Toast.show({ type: "success", text1: "Logged out" });
+    } catch (e) {
+      console.error("Error during logout", e);
+    }
   };
 
   if (!user) {
@@ -140,14 +174,14 @@ export default function Profile() {
         {logIn ? (
           <View style={{ flex: 1, backgroundColor: "#fff" }}>
             <Login
-              user={(val: any) => handleLogin(val.user, val.token)}
+              user={(val: any) => handleLogin(val?.user, val?.token)}
               login={setLogIn}
             />
           </View>
         ) : (
           <View style={{ flex: 1, backgroundColor: "#fff" }}>
             <Register
-              user={(val: any) => handleLogin(val.user, val.token)}
+              user={(val: any) => handleLogin(val?.user, val?.token)}
               login={setLogIn}
             />
           </View>
@@ -165,13 +199,10 @@ export default function Profile() {
         <Text style={styles.name}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
       </View>
-      {/* Issue Stats Cards */}
-      {/* Cards container */}
+
       <View style={styles.cardContainer}>
         <View style={[styles.card, { backgroundColor: "#3498db" }]}>
-          <Text style={{ ...styles.cardTitle, color: "#fff" }}>
-            Total Issues
-          </Text>
+          <Text style={{ ...styles.cardTitle, color: "#fff" }}>Total Issues</Text>
           <Text style={{ ...styles.cardValue, color: "#fff" }}>{total}</Text>
         </View>
         <View style={[styles.card, { backgroundColor: "#f1c40f" }]}>
@@ -187,22 +218,21 @@ export default function Profile() {
           <Text style={{ ...styles.cardValue, color: "#fff" }}>{rejected}</Text>
         </View>
       </View>
+
       <Text style={styles.header}>Recents</Text>
       {recent.length !== 0 ? (
         <View>
           {recent.map((issue) => {
-            let bgc = "";
-            if (issue.status === "Pending") bgc = "#d1b800ff";
-            if (issue.status === "Resolved") bgc = "#0b8900ff";
-            if (issue.status === "Rejected") bgc = "#ff0000ff";
+            let bgc = "#727272";
+            if (issue.status === "Pending") bgc = "#d1b800";
+            if (issue.status === "Resolved") bgc = "#0b8900";
+            if (issue.status === "Rejected") bgc = "#ff0000";
 
             return (
               <View style={styles.recentCard} key={issue._id}>
                 <Text style={styles.recentHeading}>{issue.category}</Text>
-                <Text style={styles.recentDescription}>
-                  {issue.description}
-                </Text>
-                <Text style={{ ...styles.recentStatus, backgroundColor: bgc }}>
+                <Text style={styles.recentDescription}>{issue.description}</Text>
+                <Text style={[styles.recentStatus, { backgroundColor: bgc }]}>
                   {issue.status}
                 </Text>
               </View>
@@ -210,8 +240,11 @@ export default function Profile() {
           })}
         </View>
       ) : (
-        <Text style={{color:"#727272ff", fontWeight:300,fontSize:14}}>No Issue Reported 😔</Text>
+        <Text style={{ color: "#727272", fontWeight: "300", fontSize: 14 }}>
+          No Issue Reported 😔
+        </Text>
       )}
+
       <TouchableOpacity
         style={[styles.button, { backgroundColor: "#e74c3c", marginTop: 20 }]}
         onPress={handleLogout}
@@ -246,7 +279,6 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
   name: { fontSize: 20, fontWeight: "bold" },
   email: { fontSize: 14, color: "#000" },
-
   cardContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -265,7 +297,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, color: "#555" },
   cardValue: { fontSize: 20, fontWeight: "bold", marginTop: 5 },
   recentCard: {
-    backgroundColor: "#f8f8f8ff",
+    backgroundColor: "#f8f8f8",
     padding: 12,
     width: 320,
     marginBottom: 15,
@@ -277,15 +309,14 @@ const styles = StyleSheet.create({
   },
   recentDescription: {
     fontSize: 12,
-    color: "#777777ff",
+    color: "#777",
     marginBottom: 8,
   },
   recentStatus: {
     fontSize: 13,
     color: "#fff",
     borderRadius: 15,
-    backgroundColor: "#00cb11ff",
-    width: 65,
+    width: 75,
     paddingHorizontal: 4,
     paddingVertical: 2,
     textAlign: "center",

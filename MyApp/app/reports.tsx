@@ -327,7 +327,9 @@ const Reports: React.FC = () => {
               <Ionicons name="checkmark-done-circle" size={120} color="#008545" />
               <Text style={styles.successTitle}>Report Submitted!</Text>
               <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace("/(tabs)/location")}>
-                <Text style={styles.btnText}>Finish</Text>
+                <Text style={styles.btnText} onClick={() => router.replace("/(tabs)/location")}>
+                  Finish
+                </Text>
               </TouchableOpacity>
             </View>
           )}
