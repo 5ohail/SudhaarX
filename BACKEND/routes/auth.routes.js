@@ -1,44 +1,41 @@
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import dns from 'dns';
 import User from '../models/userModel.js';
-
+import net from 'net';
 const authRouter = express.Router();
 
 // --- NODEMAILER CONFIG ---
 
 
+
+
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465, // Switching back to 465 but with strict IPv4 forcing
-  secure: true, // true for 465
+  // Using a direct Google IPv4 address to bypass DNS entirely
+  host: '142.251.2.108', 
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  // This is the strongest way to force IPv4 on Node.js/Render
-  lookup: (hostname, options, callback) => {
-    dns.lookup(hostname, { family: 4 }, (err, address, family) => {
-      callback(err, address, family);
-    });
+  // CRITICAL: This tells Gmail "I know I connected via IP, but I'm actually talking to you"
+  tls: {
+    servername: 'smtp.gmail.com',
+    rejectUnauthorized: false
   },
-  // Increased timeouts for slow cloud spin-ups
-  connectionTimeout: 20000, 
+  // Force the internal socket to use IPv4
+  connectionTimeout: 20000,
   greetingTimeout: 20000,
   socketTimeout: 30000,
-  tls: {
-    rejectUnauthorized: false,
-    minVersion: "TLSv1.2"
-  }
 });
 
-// Check the connection
+// Final Check
 transporter.verify((error, success) => {
   if (error) {
-    console.error("Nodemailer Final Fix Failed:", error.message);
+    console.error("The system is still blocked. Error:", error.message);
   } else {
-    console.log("SudhaarX Email System: SUCCESS - Connected via IPv4 (Port 465)");
+    console.log("🚀 SudhaarX Email System: LIVE via Direct IPv4");
   }
 });
 
