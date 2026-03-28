@@ -1,6 +1,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import User from '../models/userModel.js';
 
 const authRouter = express.Router();
@@ -14,17 +15,15 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  // FORCE IPV4: This is the critical fix for ENETUNREACH
-  connectionTimeout: 10000, 
+  // --- THE FIXES ---
+  family: 4, // Force IPv4 (Stops the ENETUNREACH IPv6 error)
+  connectionTimeout: 10000, // 10 seconds
   greetingTimeout: 10000,
-  socketTimeout: 10000,
-  dnsLookup: (hostname, options, callback) => {
-    // This forces the lookup to return an IPv4 address only
-    const dns = require('dns');
-    dns.lookup(hostname, { family: 4 }, callback);
-  },
+  socketTimeout: 20000,
   tls: {
-    rejectUnauthorized: false
+    // Helps with certificate issues on cloud containers
+    rejectUnauthorized: false,
+    minVersion: "TLSv1.2"
   }
 });
 
