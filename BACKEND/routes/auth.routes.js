@@ -8,28 +8,38 @@ import User from '../models/userModel.js';
 const authRouter = express.Router();
 
 // --- NODEMAILER CONFIG ---
+import dns from 'dns';
+
 const transporter = nodemailer.createTransport({
-  // Hardcoding one of Google's standard SMTP IPv4 addresses
-  host: '74.125.136.108', 
-  port: 587,
-  secure: false, 
+  host: 'smtp.gmail.com',
+  port: 465, // Switching back to 465 but with strict IPv4 forcing
+  secure: true, // true for 465
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  // We MUST provide the servername for the SSL/TLS handshake to work
+  // This is the strongest way to force IPv4 on Node.js/Render
+  lookup: (hostname, options, callback) => {
+    dns.lookup(hostname, { family: 4 }, (err, address, family) => {
+      callback(err, address, family);
+    });
+  },
+  // Increased timeouts for slow cloud spin-ups
+  connectionTimeout: 20000, 
+  greetingTimeout: 20000,
+  socketTimeout: 30000,
   tls: {
-    servername: 'smtp.gmail.com',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    minVersion: "TLSv1.2"
   }
 });
 
-// Verification check
+// Check the connection
 transporter.verify((error, success) => {
   if (error) {
-    console.error("Hardcoded IP Fix Failed:", error.message);
+    console.error("Nodemailer Final Fix Failed:", error.message);
   } else {
-    console.log("SudhaarX Email System: SUCCESS - Connected via Hardcoded IPv4");
+    console.log("SudhaarX Email System: SUCCESS - Connected via IPv4 (Port 465)");
   }
 });
 
