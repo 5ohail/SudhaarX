@@ -149,6 +149,17 @@ router.get("/unassigned", async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 });
+router.get("/unresolved", async (req, res) => {
+  try {
+    const issues = await issueModel.find({
+      status: { $in: ["Pending", "Assigned"] }
+    });
+    return res.json(issues);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 
 router.patch("/:id/status", async (req, res) => {
   try {
