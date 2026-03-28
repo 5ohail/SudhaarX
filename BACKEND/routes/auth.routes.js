@@ -15,6 +15,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS, // Use App Password
   },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 // --- 1. SEND OTP TO EMAIL ---
