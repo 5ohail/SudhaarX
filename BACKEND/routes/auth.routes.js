@@ -1,14 +1,13 @@
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import dns from 'node:dns';
-dns.setDefaultResultOrder('ipv4first');
+import dns from 'dns';
 import User from '../models/userModel.js';
 
 const authRouter = express.Router();
 
 // --- NODEMAILER CONFIG ---
-import dns from 'dns';
+
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
