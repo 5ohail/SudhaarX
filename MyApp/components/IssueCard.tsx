@@ -1,6 +1,6 @@
-import { View, Text, Image, StyleSheet, Pressable } from "react-native";
+import { View, Text, Image, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 
 interface IssueProps {
   category: string;
@@ -10,13 +10,13 @@ interface IssueProps {
   status: string;
   latitude: number;
   longitude: number;
-  // NEW PROPS
-  createdAt: Date; // Date the issue was reported
-  assignedWorker?: string; // Optional name
-  severity: number; // 1 (Minor) to 5 (Critical)
+  createdAt: string | Date; 
+  assignedWorker?: string;
+  severity: number;
 }
 
 const truncate = (txt: string) => {
+  if (!txt) return "";
   if (txt.length >= 60) return txt.slice(0, 56) + " ...";
   return txt;
 };
@@ -34,8 +34,14 @@ const IssueCard = ({
   severity,
 }: IssueProps) => {
   const router = useRouter();
+  const [imgLoading, setImgLoading] = useState(true);
 
-  // Logic for dynamic resolution time
+  // --- THE FIX: URL SANITIZER ---
+  // This Regex looks for double slashes (//) but ignores the "https://" part.
+  const finalImgUri = imgUri 
+    ? imgUri.replace(/([^:]\/)\/+/g, "$1") 
+    : "https://via.placeholder.com/150?text=No+Image";
+
   const getEstimatedTime = (sev: number) => {
     if (status === "Resolved") return "Resolved";
     if (sev >= 5) return "4-7 Days (High Priority)";
@@ -61,17 +67,17 @@ const IssueCard = ({
           params: {
             latitude: String(latitude),
             longitude: String(longitude),
-            img: imgUri,
+            img: finalImgUri,
             address,
             category,
             description,
           },
         });
       }}
-      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+      style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
     >
       <View style={[styles.container, styles.shadow]}>
-        {/* Header row */}
+        {/* Header Row */}
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.category}>{category}</Text>
@@ -80,7 +86,7 @@ const IssueCard = ({
           <Text style={[styles.status, { backgroundColor: color }]}>{status}</Text>
         </View>
 
-        {/* Content row */}
+        {/* Content Row */}
         <View style={styles.contentRow}>
           <View style={styles.textBox}>
             <Text style={styles.description}>{truncate(description)}</Text>
@@ -97,7 +103,24 @@ const IssueCard = ({
               📍 {address}
             </Text>
           </View>
-          <Image source={{ uri: imgUri }} style={styles.img} />
+
+          {/* Image Container with Loading Indicator */}
+          <View style={styles.imgWrapper}>
+            <Image 
+              source={{ uri: finalImgUri }} 
+              style={styles.img} 
+              onLoadEnd={() => setImgLoading(false)}
+              onError={(e) => {
+                console.log("Image Load Error:", finalImgUri, e.nativeEvent.error);
+                setImgLoading(false);
+              }}
+            />
+            {imgLoading && (
+              <View style={styles.imgLoader}>
+                <ActivityIndicator size="small" color="#008545" />
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </Pressable>
@@ -109,75 +132,89 @@ export default IssueCard;
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 15,
     marginHorizontal: 12,
     marginVertical: 8,
   },
   shadow: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   category: {
-    fontWeight: "700",
+    fontWeight: "800",
     fontSize: 16,
-    color: "#222",
+    color: "#1a1a1a",
   },
   timestamp: {
     fontSize: 11,
-    color: "#999",
+    color: "#a0a0a0",
     marginTop: 2,
   },
   status: {
     color: "#fff",
-    fontWeight: "600",
-    fontSize: 11,
+    fontWeight: "700",
+    fontSize: 10,
     paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: 20,
+    borderRadius: 8,
     overflow: "hidden",
     textTransform: "uppercase",
   },
   contentRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end", // Align image with the bottom of the text
+    alignItems: "center",
   },
   textBox: {
     flex: 1,
-    marginRight: 10,
+    marginRight: 12,
   },
   description: {
     fontSize: 14,
-    color: "#444",
-    marginBottom: 8,
+    color: "#555",
+    marginBottom: 10,
+    lineHeight: 18,
   },
   infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
   infoText: {
     fontSize: 12,
-    color: "#555",
+    color: "#666",
     fontWeight: "500",
   },
   address: {
     fontSize: 12,
-    color: "#777",
-    marginTop: 4,
+    color: "#008545",
+    fontWeight: "600",
+    marginTop: 6,
+  },
+  imgWrapper: {
+    height: 95,
+    width: 95,
+    borderRadius: 12,
+    backgroundColor: "#f5f5f5",
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   img: {
-    height: 90,
-    width: 90,
-    borderRadius: 10,
-    backgroundColor: "#f0f0f0",
+    height: "100%",
+    width: "100%",
   },
+  imgLoader: {
+    position: 'absolute',
+  }
 });
