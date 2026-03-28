@@ -98,7 +98,7 @@ const Reports: React.FC = () => {
     }
   };
 
-  // 🤖 AI ANALYSIS (GEMINI 1.5/2.5 FLASH)
+  // 🤖 AI ANALYSIS
   const handleAiClassification = async () => {
     if (!image?.base64) return Alert.alert("Missing Photo", "Please take a photo first.");
 
@@ -106,7 +106,7 @@ const Reports: React.FC = () => {
     setIsScanning(true);
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent([
         `Analyze this civic issue image. Return JSON ONLY: {"category": "one of [${CATEGORIES.join(", ")}]", "severity": 1-5, "estimatedTime": "e.g. 48 Hours"}`,
         { inlineData: { data: image.base64, mimeType: "image/jpeg" } },
@@ -152,7 +152,7 @@ const Reports: React.FC = () => {
     }
   };
 
-  // 🔐 BACKEND EMAIL OTP (NODEMAILER)
+  // 🔐 BACKEND EMAIL OTP (Uses Resend API)
   const handleSendEmailOtp = async () => {
     if (!email) return Alert.alert("Error", "No email found for this account.");
     
@@ -178,7 +178,7 @@ const Reports: React.FC = () => {
       const response = await axios.post(`${API_BASE_URL}/auth/verify-otp-email`, { email, otp });
       if (response.data.success) {
         setIsVerified(true);
-        Alert.alert("Verified", "Your identity has been confirmed via email.");
+        Alert.alert("Verified", "Your identity has been confirmed.");
       }
     } catch (err: any) {
       Alert.alert("Verification Failed", err.response?.data?.message || "Invalid or expired code.");
@@ -207,8 +207,11 @@ const Reports: React.FC = () => {
       formData.append("email", email);
 
       if (image) {
-        // @ts-ignore
-        formData.append("image", { uri: image.uri, type: "image/jpeg", name: "issue_photo.jpg" });
+        formData.append("image", { 
+          uri: image.uri, 
+          type: "image/jpeg", 
+          name: "issue_photo.jpg" 
+        } as any);
       }
 
       await axios.post(`${API_BASE_URL}/issues`, formData, {
@@ -256,7 +259,12 @@ const Reports: React.FC = () => {
           {step === 2 && (
             <View style={styles.card}>
               <Text style={styles.label}>2. AI Verification</Text>
-              {isScanning ? <ActivityIndicator size="large" color="#008545" /> : (
+              {isScanning ? (
+                <View style={{ padding: 20 }}>
+                  <ActivityIndicator size="large" color="#008545" />
+                  <Text style={{ textAlign: 'center', marginTop: 10 }}>Analyzing image...</Text>
+                </View>
+              ) : (
                 <View style={styles.aiBox}>
                   <Text style={styles.aiText}><Text style={styles.bold}>Category:</Text> {category}</Text>
                   <Text style={styles.aiText}><Text style={styles.bold}>Severity:</Text> {severity}/5</Text>
@@ -284,7 +292,7 @@ const Reports: React.FC = () => {
 
           {step === 4 && (
             <View style={styles.card}>
-              <Text style={styles.label}>4. Email Verification</Text>
+              <Text style={styles.label}>4. Identity Verification</Text>
               {isVerified ? (
                 <View style={styles.userBox}>
                   <Ionicons name="shield-checkmark" size={50} color="#008545" />
@@ -305,7 +313,7 @@ const Reports: React.FC = () => {
                         style={styles.otpInput} 
                         value={otp} 
                         onChangeText={setOtp} 
-                        placeholder="Enter 6-digit OTP" 
+                        placeholder="000000" 
                         keyboardType="number-pad"
                         maxLength={6}
                       />
@@ -313,7 +321,7 @@ const Reports: React.FC = () => {
                         <Text style={styles.btnText}>Verify Code</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => setIsOtpSent(false)}>
-                        <Text style={styles.linkText}>Resend Code</Text>
+                        <Text style={styles.linkText}>Try again?</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -326,10 +334,11 @@ const Reports: React.FC = () => {
             <View style={styles.successBox}>
               <Ionicons name="checkmark-done-circle" size={120} color="#008545" />
               <Text style={styles.successTitle}>Report Submitted!</Text>
-              <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace("/(tabs)/location")}>
-                <Text style={styles.btnText} onClick={() => router.replace("/(tabs)/location")}>
-                  Finish
-                </Text>
+              <TouchableOpacity 
+                style={styles.homeBtn} 
+                onPress={() => router.replace("/(tabs)/location")}
+              >
+                <Text style={styles.btnText}>Finish</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -346,6 +355,7 @@ const Reports: React.FC = () => {
                 disabled={loading || (step === 3 && !location)}
                 onPress={() => {
                   if (step === 1) handleAiClassification();
+                  else if (step === 2) setStep(3);
                   else if (step === 3) setStep(4);
                   else if (step === 4) finalSubmission();
                   else setStep(step + 1);
