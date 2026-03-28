@@ -7,13 +7,21 @@ const authRouter = express.Router();
 
 // --- NODEMAILER CONFIG ---
 const transporter = nodemailer.createTransport({
-  service: 'gmail', 
   host: 'smtp.gmail.com',
   port: 587,
-  secure: false, // Use TLS
+  secure: false, // Must be false for 587
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // Use App Password
+    pass: process.env.EMAIL_PASS,
+  },
+  // FORCE IPV4: This is the critical fix for ENETUNREACH
+  connectionTimeout: 10000, 
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+  dnsLookup: (hostname, options, callback) => {
+    // This forces the lookup to return an IPv4 address only
+    const dns = require('dns');
+    dns.lookup(hostname, { family: 4 }, callback);
   },
   tls: {
     rejectUnauthorized: false
