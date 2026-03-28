@@ -1,43 +1,12 @@
 import express from 'express';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import User from '../models/userModel.js';
-import net from 'net';
+
 const authRouter = express.Router();
 
-// --- NODEMAILER CONFIG ---
-
-
-
-
-const transporter = nodemailer.createTransport({
-  // Using a direct Google IPv4 address to bypass DNS entirely
-  host: '142.251.2.108', 
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  // CRITICAL: This tells Gmail "I know I connected via IP, but I'm actually talking to you"
-  tls: {
-    servername: 'smtp.gmail.com',
-    rejectUnauthorized: false
-  },
-  // Force the internal socket to use IPv4
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 30000,
-});
-
-// Final Check
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("The system is still blocked. Error:", error.message);
-  } else {
-    console.log("🚀 SudhaarX Email System: LIVE via Direct IPv4");
-  }
-});
+// Initialize Resend with your API Key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- 1. SEND OTP TO EMAIL ---
 authRouter.post('/send-otp-email', async (req, res) => {
@@ -65,56 +34,40 @@ authRouter.post('/send-otp-email', async (req, res) => {
       return res.status(404).json({ success: false, message: "No account found with this email." });
     }
 
-    // Send Email
-    await transporter.sendMail({
-  from: `"SudhaarX Security" <${process.env.EMAIL_USER}>`,
-  to: cleanEmail,
-  subject: `${otp} is your SudhaarX verification code`,
-  html: `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 40px 10px;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-        
-        <div style="background-color: #008545; padding: 20px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 1px;">SudhaarX</h1>
-          <p style="color: #e8f5e9; margin: 5px 0 0 0; font-size: 14px;">Civic Action & Reporting Portal</p>
-        </div>
+    // Send Email using Resend API (Standard HTTPS)
+    const { data, error } = await resend.emails.send({
+      from: 'SudhaarX <onboarding@resend.dev>', // While testing, you must use this 'from' address
+      to: cleanEmail,
+      subject: `${otp} is your SudhaarX verification code`,
+      html: `
+        <div style="font-family: sans-serif; background-color: #f4f7f6; padding: 40px 10px;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 40px 30px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+            <h1 style="color: #008545; margin: 0;">SudhaarX</h1>
+            <h2 style="color: #333333; margin-top: 20px;">Verify Your Identity</h2>
+            <p style="color: #666666; font-size: 16px;">Please enter the following code to proceed with your report:</p>
+            
+            <div style="margin: 30px 0; padding: 20px; border: 2px dashed #008545; border-radius: 12px; display: inline-block;">
+              <span style="font-size: 32px; font-weight: bold; color: #008545; letter-spacing: 5px;">
+                ${otp}
+              </span>
+            </div>
 
-        <div style="padding: 40px 30px; text-align: center;">
-          <h2 style="color: #333333; margin-bottom: 20px;">Verify Your Identity</h2>
-          <p style="color: #666666; font-size: 16px; line-height: 1.5;">
-            You are receiving this email because a civic issue report is being submitted via your account. 
-            Please enter the following verification code to proceed:
-          </p>
-          
-          <div style="margin: 30px 0; padding: 20px; background-color: #f9faf9; border: 2px dashed #008545; border-radius: 12px;">
-            <span style="font-size: 42px; font-weight: bold; color: #008545; letter-spacing: 10px; font-family: monospace;">
-              ${otp}
-            </span>
+            <p style="color: #999999; font-size: 13px;">This code expires in 10 minutes.</p>
           </div>
-
-          <p style="color: #999999; font-size: 13px;">
-            This code is valid for <strong>10 minutes</strong>.<br>
-            If you did not initiate this request, please ignore this email or secure your account.
-          </p>
         </div>
+      `
+    });
 
-        <div style="background-color: #eeeeee; padding: 20px; text-align: center; border-top: 1px solid #dddddd;">
-          <p style="color: #888888; font-size: 12px; margin: 0;">
-            &copy; 2024 SudhaarX Digital Infrastructure. All Rights Reserved.<br>
-            This is an automated security notification.
-          </p>
-        </div>
-
-      </div>
-    </div>
-  `
-});
+    if (error) {
+      console.error("Resend Error:", error);
+      return res.status(500).json({ success: false, message: "Failed to send email via API." });
+    }
 
     res.status(200).json({ success: true, message: "OTP sent to your email." });
 
   } catch (error) {
-    console.error("Email OTP Error:", error);
-    res.status(500).json({ success: false, message: "Failed to send email." });
+    console.error("Internal Server Error:", error);
+    res.status(500).json({ success: false, message: "Server error." });
   }
 });
 
@@ -138,7 +91,7 @@ authRouter.post('/verify-otp-email', async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid verification code." });
     }
 
-    // Clear OTP fields after successful validation
+    // Clear OTP fields
     user.otp = null;
     user.otpExpires = null;
     await user.save();
