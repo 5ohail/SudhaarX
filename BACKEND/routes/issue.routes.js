@@ -167,5 +167,17 @@ router.patch("/:id/status", async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 });
+router.post("/:id/assign/:workerId", async (req, res) => {
+  try {    const updated = await issueModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: { workerAssigned: req.params.workerId, status: "Assigned", updatedAt: new Date() } },
+      { new: true }
+    );
+    return res.status(200).json(updated);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+
+});
 
 export default router;

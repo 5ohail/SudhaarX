@@ -1,16 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+// 1. Import the hook
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BottomNavbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets(); // 2. Initialize insets
 
   const [activeRoute, setActiveRoute] = useState("/");
-  const [isAdmin, setIsAdmin] = useState(false); // Default to false
-
+  const [isAdmin, setIsAdmin] = useState(true);
+  
   useEffect(() => {
     setActiveRoute(
       pathname.split("/")[1] ? `/${pathname.split("/")[1]}` : "/"
@@ -22,9 +25,7 @@ const BottomNavbar: React.FC = () => {
       try {
         const userData = await AsyncStorage.getItem("user");
         if (!userData) return;
-
         const user = JSON.parse(userData);
-        // Check if userType is admin
         if (user.userType === "admin") {
           setIsAdmin(true);
         }
@@ -32,12 +33,9 @@ const BottomNavbar: React.FC = () => {
         console.error("Error checking admin status:", error);
       }
     };
-
     checkAdmin();
   }, []);
 
-  // --- DEFINE TABS BASED ON ROLE ---
-  
   const adminTabs = [
     { name: "Nearby", icon: "compass-outline", route: "/nearbyIssues" },
     { name: "Assign", icon: "people-outline", route: "/assignWorker" },
@@ -53,11 +51,21 @@ const BottomNavbar: React.FC = () => {
     { name: "Profile", icon: "person-outline", route: "/profile" },
   ];
 
-  // Pick which set of tabs to use
   const tabs = isAdmin ? adminTabs : userTabs;
 
   return (
-    <View style={styles.container}>
+    <View 
+      style={[
+        styles.container, 
+        { 
+          // 3. Apply dynamic padding based on device navigation type
+          // If insets.bottom is 0 (buttons), we add a default 10px.
+          // If insets.bottom is > 0 (gestures), we use the system value.
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+          height: 60 + (insets.bottom > 0 ? insets.bottom : 12) 
+        }
+      ]}
+    >
       {tabs.map((tab) => {
         const isActive = activeRoute === tab.route;
 
@@ -70,7 +78,7 @@ const BottomNavbar: React.FC = () => {
             <Ionicons
               name={tab.icon as any}
               size={26}
-              color={isActive ? "#007AFF" : "#8E8E93"}
+              color={isActive ? "#008545" : "#8E8E93"} // Updated to match your theme green
             />
           </TouchableOpacity>
         );
@@ -84,16 +92,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    height: 70, // Increased height for better thumb reach
     borderTopWidth: 1,
     borderTopColor: "#E5E5EA",
     backgroundColor: "#ffffff",
-    paddingBottom: 10, // Padding for modern notched phones
+    // Remove hardcoded height from here, we handle it inline now
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingTop: 10, // Keep icons centered relative to the bar top
   },
 });
 

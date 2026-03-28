@@ -10,16 +10,10 @@ interface IssueProps {
   status: string;
   latitude: number;
   longitude: number;
-  createdAt: string | Date; 
+  createdAt: string | Date;
   assignedWorker?: string;
   severity: number;
 }
-
-const truncate = (txt: string) => {
-  if (!txt) return "";
-  if (txt.length >= 60) return txt.slice(0, 56) + " ...";
-  return txt;
-};
 
 const IssueCard = ({
   category,
@@ -36,26 +30,27 @@ const IssueCard = ({
   const router = useRouter();
   const [imgLoading, setImgLoading] = useState(true);
 
-  // --- THE FIX: URL SANITIZER ---
-  // This Regex looks for double slashes (//) but ignores the "https://" part.
-  const finalImgUri = imgUri 
-    ? imgUri.replace(/([^:]\/)\/+/g, "$1") 
+  // URL Sanitizer to handle potential double-slash issues from backend
+  const finalImgUri = imgUri
+    ? imgUri.replace(/([^:]\/)\/+/g, "$1")
     : "https://via.placeholder.com/150?text=No+Image";
 
   const getEstimatedTime = (sev: number) => {
     if (status === "Resolved") return "Resolved";
-    if (sev >= 5) return "4-7 Days (High Priority)";
+    if (sev >= 5) return "4-7 Days (High)";
     if (sev >= 3) return "2-3 Days";
     return "24 Hours";
   };
 
   const getColor = (status: string) => {
-    if (status === "Resolved") return "#2ecc71";
-    if (status === "Pending") return "#f39c12";
-    return "#e74c3c";
+    switch (status) {
+      case "Resolved": return "#2ecc71";
+      case "Pending": return "#f39c12";
+      default: return "#e74c3c";
+    }
   };
 
-  const color = getColor(status);
+  const statusColor = getColor(status);
   const timeLabel = getEstimatedTime(severity);
   const formattedDate = new Date(createdAt).toLocaleDateString();
 
@@ -74,29 +69,40 @@ const IssueCard = ({
           },
         });
       }}
-      style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
+      style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}
     >
       <View style={[styles.container, styles.shadow]}>
-        {/* Header Row */}
+        
+        {/* Header Row: Category & Status */}
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.category}>{category}</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.category} numberOfLines={1}>
+              {category}
+            </Text>
             <Text style={styles.timestamp}>Reported: {formattedDate}</Text>
           </View>
-          <Text style={[styles.status, { backgroundColor: color }]}>{status}</Text>
+          <View style={styles.statusBadgeContainer}>
+            <Text style={[styles.status, { backgroundColor: statusColor }]}>
+              {status}
+            </Text>
+          </View>
         </View>
 
-        {/* Content Row */}
+        {/* Content Row: Info & Image */}
         <View style={styles.contentRow}>
           <View style={styles.textBox}>
-            <Text style={styles.description}>{truncate(description)}</Text>
-            
+            <Text style={styles.description} numberOfLines={2}>
+              {description}
+            </Text>
+
             <View style={styles.infoRow}>
-               <Text style={styles.infoText}>👷 {assignedWorker || "No worker assigned"}</Text>
+              <Text style={styles.infoText} numberOfLines={1}>
+                👷 {assignedWorker || "Not Assigned"}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>
-               <Text style={styles.infoText}>⏳ Est: {timeLabel}</Text>
+              <Text style={styles.infoText}>⏳ {timeLabel}</Text>
             </View>
 
             <Text style={styles.address} numberOfLines={1}>
@@ -104,16 +110,13 @@ const IssueCard = ({
             </Text>
           </View>
 
-          {/* Image Container with Loading Indicator */}
+          {/* Image Container */}
           <View style={styles.imgWrapper}>
-            <Image 
-              source={{ uri: finalImgUri }} 
-              style={styles.img} 
+            <Image
+              source={{ uri: finalImgUri }}
+              style={styles.img}
               onLoadEnd={() => setImgLoading(false)}
-              onError={(e) => {
-                console.log("Image Load Error:", finalImgUri, e.nativeEvent.error);
-                setImgLoading(false);
-              }}
+              onError={() => setImgLoading(false)}
             />
             {imgLoading && (
               <View style={styles.imgLoader}>
@@ -133,22 +136,32 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 15,
+    padding: 14,
     marginHorizontal: 12,
     marginVertical: 8,
+    width: "93%", // Ensures it doesn't touch screen edges
+    alignSelf: 'center',
   },
   shadow: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: 10,
+    width: '100%',
+  },
+  headerTextContainer: {
+    flex: 1, // Takes up remaining space
+    marginRight: 10,
+  },
+  statusBadgeContainer: {
+    flexShrink: 0, // Don't let the badge shrink
   },
   category: {
     fontWeight: "800",
@@ -157,38 +170,39 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 11,
-    color: "#a0a0a0",
-    marginTop: 2,
+    color: "#999",
+    marginTop: 1,
   },
   status: {
     color: "#fff",
     fontWeight: "700",
     fontSize: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
     overflow: "hidden",
     textTransform: "uppercase",
+    textAlign: "center",
   },
   contentRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    width: '100%',
   },
   textBox: {
     flex: 1,
-    marginRight: 12,
+    paddingRight: 10,
   },
   description: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#555",
-    marginBottom: 10,
+    marginBottom: 6,
     lineHeight: 18,
   },
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 3,
   },
   infoText: {
     fontSize: 12,
@@ -198,23 +212,24 @@ const styles = StyleSheet.create({
   address: {
     fontSize: 12,
     color: "#008545",
-    fontWeight: "600",
-    marginTop: 6,
+    fontWeight: "700",
+    marginTop: 4,
   },
   imgWrapper: {
-    height: 95,
-    width: 95,
-    borderRadius: 12,
-    backgroundColor: "#f5f5f5",
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: 80,
+    width: 80,
+    borderRadius: 10,
+    backgroundColor: "#f0f0f0",
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
   },
   img: {
     height: "100%",
     width: "100%",
+    resizeMode: "cover",
   },
   imgLoader: {
-    position: 'absolute',
-  }
+    position: "absolute",
+  },
 });

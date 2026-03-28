@@ -12,6 +12,7 @@
       "bundleIdentifier": "com.SudhaarX.app"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "package": "com.SudhaarX.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/SudhaarX.jpeg",

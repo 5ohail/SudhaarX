@@ -7,7 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function Layout() {
   const [loading, setLoading] = useState(true);
-
+  const [isAdmin, setIsAdmin] = useState(true);
   const headerLogo = () => (
     <Image
       source={require("@/assets/images/SudhaarX.jpeg")}
@@ -18,7 +18,7 @@ export default function Layout() {
   return (
     // 2. Wrap everything in SafeAreaProvider
     <SafeAreaProvider>
-      <Stack initialRouteName={"index"}>
+      <Stack initialRouteName={isAdmin ? "nearbyIssues" : "index"}>
         <Stack.Screen
           name="index"
           options={{ title: "Civic Issues", headerTitleAlign: "center", headerLeft: headerLogo }}

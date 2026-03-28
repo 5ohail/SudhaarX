@@ -31,13 +31,14 @@ const CATEGORIES = [
   "Potholes",
   "Garbage",
   "Sewerage Issue",
-  "Broken Sidewalk",
-  "Stray Animal Menace",
+  "Debris and Construction Materials",
+  "Dead Animals on Road",
   "Water Pipe Leakage",
-  "Traffic Signal Failure",
-  "Illegal Construction",
+  "Open Manholes and Drains",
+  "Short Circuiting & Exposed Wires",
   "Fallen Trees",
-  "Vandalism & Graffiti",
+  "Burning of Something on Open Spaces",
+  "Sweeping and Cleaning Required",
   "Miscellaneous Issue",
 ] as const;
 
@@ -106,7 +107,7 @@ const Reports: React.FC = () => {
     setIsScanning(true);
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent([
         `Analyze this civic issue image. Return JSON ONLY: {"category": "one of [${CATEGORIES.join(", ")}]", "severity": 1-5, "estimatedTime": "e.g. 48 Hours"}`,
         { inlineData: { data: image.base64, mimeType: "image/jpeg" } },
@@ -334,12 +335,6 @@ const Reports: React.FC = () => {
             <View style={styles.successBox}>
               <Ionicons name="checkmark-done-circle" size={120} color="#008545" />
               <Text style={styles.successTitle}>Report Submitted!</Text>
-              <TouchableOpacity 
-                style={styles.homeBtn} 
-                onPress={() => router.replace("/(tabs)/location")}
-              >
-                <Text style={styles.btnText}>Finish</Text>
-              </TouchableOpacity>
             </View>
           )}
 

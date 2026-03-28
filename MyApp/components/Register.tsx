@@ -1,8 +1,20 @@
 import React, { useState } from "react";
-import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  View, 
+  StyleSheet, 
+  ActivityIndicator, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView 
+} from "react-native";
 import Toast from "react-native-toast-message";
 import axios from "axios";
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://sudhaarx.onrender.com';
+
 const Register = ({
   user,
   login,
@@ -14,6 +26,8 @@ const Register = ({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleRegister = async () => {
     if (!email || !username || !password || !phone) {
       Toast.show({
@@ -24,125 +38,171 @@ const Register = ({
       return;
     }
 
-    try {
-      const response = await axios.post(`${BASE_URL}/users/create`, {
-        email,
-        username,
-        password,
-        phone,
-      });
+    setIsLoading(true);
 
-      user(response.data.user);
-      login(true);
+    try {
+      const cleanBaseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+      
+      const response = await axios.post(`${cleanBaseUrl}/users/create`, {
+        email: email.trim().toLowerCase(),
+        username: username.trim(),
+        password,
+        phone: phone.trim(),
+      });
 
       Toast.show({
         type: "success",
         text1: "Registration successful 🎉",
-        text2: "You can now log in with your account",
+        text2: "Welcome to SudhaarX!",
       });
+
+      // Small delay to ensure the user sees the success toast
+      setTimeout(() => {
+        user(response.data.user);
+        login(true);
+      }, 800);
+
     } catch (err: any) {
       console.log("Registration error:", err);
-      const errorMsg = err.response?.data?.message || "Please try again";
+      const errorMsg = err.response?.data?.message || "Server is currently unreachable";
       Toast.show({
         type: "error",
         text1: "Registration failed",
         text2: errorMsg,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleLoginRedirect = () => {
-    login(true);
+    login(true); // Assuming logic elsewhere handles the toggle between Login/Register
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Register</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        style={styles.input}
-      />
-       <TextInput
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Phone"
-        style={styles.input}
-      />
-      <TextInput
-        value={username}
-        onChangeText={setUsername}
-        placeholder="Username"
-        style={styles.input}
-      />
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        secureTextEntry
-        style={styles.input}
-      />
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Create Account</Text>
+        
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Email Address"
+          placeholderTextColor="#999" // ✅ Fix for invisible placeholders
+          style={styles.input}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Register</Text>
-      </TouchableOpacity>
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="Phone Number"
+          placeholderTextColor="#999" // ✅ Fix for invisible placeholders
+          style={styles.input}
+          keyboardType="phone-pad"
+        />
 
-      <Text style={styles.footerText}>
-        Already have an account?{" "}
-        <Text style={styles.linkText} onPress={handleLoginRedirect}>
-          Log in
+        <TextInput
+          value={username}
+          onChangeText={setUsername}
+          placeholder="Username"
+          placeholderTextColor="#999" // ✅ Fix for invisible placeholders
+          style={styles.input}
+          autoCapitalize="words"
+        />
+
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          placeholderTextColor="#999" // ✅ Fix for invisible placeholders
+          secureTextEntry
+          style={styles.input}
+        />
+
+        <TouchableOpacity 
+          style={[styles.button, isLoading && { opacity: 0.7 }]} 
+          onPress={handleRegister}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Register</Text>
+          )}
+        </TouchableOpacity>
+
+        <Text style={styles.footerText}>
+          Already have an account?{" "}
+          <Text style={styles.linkText} onPress={handleLoginRedirect}>
+            Log in
+          </Text>
         </Text>
-      </Text>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 export default Register;
 
-const styles = {
+const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
     flex: 1,
-    justifyContent: "center" as const,
-    paddingHorizontal: 20,
+    backgroundColor: "#fff",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: 25,
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold" as const,
-    textAlign: "center" as const,
-    marginVertical: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 30,
     color: "#333",
   },
   input: {
-    height: 50,
-    borderColor: "#008545ff",
-    borderWidth: 1,
-    borderRadius: 8,
+    height: 55,
+    borderColor: "#008545",
+    borderWidth: 1.5,
+    borderRadius: 12,
     marginBottom: 15,
-    paddingHorizontal: 12,
+    paddingHorizontal: 15,
     backgroundColor: "#fff",
+    color: "#333", // ✅ Fix: ensures text is visible (not white)
+    fontSize: 16,
   },
   button: {
-    backgroundColor: "#008545ff",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center" as const,
+    backgroundColor: "#008545",
+    borderRadius: 12,
+    height: 55,
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 10,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   buttonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold" as const,
+    fontWeight: "bold",
   },
   footerText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#666",
-    textAlign: "center" as const,
-    marginTop: 20,
+    textAlign: "center",
+    marginTop: 25,
   },
   linkText: {
-    color: "#008545ff",
-    fontWeight: "bold" as const,
+    color: "#008545",
+    fontWeight: "bold",
   },
-};
+});

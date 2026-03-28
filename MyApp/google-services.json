@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "222488687015",
+    "project_id": "sudhaar-x",
+    "storage_bucket": "sudhaar-x.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:222488687015:android:9dda4433be06086bfdc682",
+        "android_client_info": {
+          "package_name": "com.SudhaarX.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "222488687015-0rtvl47g2pf9ifd7svhgkpumaetu6gcc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.SudhaarX.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "222488687015-84hqjs1qt8rl5nbqpu062ejndigs1dua.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJYO9rdZjyc6l9Xr7nRZzXRrdtvP0m8aA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "222488687015-3c082in2hsck6otjq2rsor95pp53v9us.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
