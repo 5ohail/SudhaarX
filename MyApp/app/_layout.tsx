@@ -19,7 +19,6 @@ export default function Layout() {
     // 2. Wrap everything in SafeAreaProvider
     <SafeAreaProvider>
       <Stack initialRouteName={"index"}>
-        <Stack.Screen name="onBoarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="index"
           options={{ title: "Civic Issues", headerTitleAlign: "center", headerLeft: headerLogo }}

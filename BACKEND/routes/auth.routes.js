@@ -9,23 +9,27 @@ const authRouter = express.Router();
 
 // --- NODEMAILER CONFIG ---
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
+  // Hardcoding one of Google's standard SMTP IPv4 addresses
+  host: '74.125.136.108', 
   port: 587,
-  secure: false, // Must be false for 587
+  secure: false, 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  // Explicitly set family to 4 here as well
-  family: 4 
+  // We MUST provide the servername for the SSL/TLS handshake to work
+  tls: {
+    servername: 'smtp.gmail.com',
+    rejectUnauthorized: false
+  }
 });
 
-// Log if the connection is actually working on startup
+// Verification check
 transporter.verify((error, success) => {
   if (error) {
-    console.error("Nodemailer Fix Failed. Error details:", error.message);
+    console.error("Hardcoded IP Fix Failed:", error.message);
   } else {
-    console.log("SudhaarX Email System: SUCCESS - Connected via IPv4");
+    console.log("SudhaarX Email System: SUCCESS - Connected via Hardcoded IPv4");
   }
 });
 
