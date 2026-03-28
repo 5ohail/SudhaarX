@@ -16,15 +16,16 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  // --- THE FIXES ---
-  family: 4, // Force IPv4 (Stops the ENETUNREACH IPv6 error)
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 10000,
-  socketTimeout: 20000,
-  tls: {
-    // Helps with certificate issues on cloud containers
-    rejectUnauthorized: false,
-    minVersion: "TLSv1.2"
+  // Explicitly set family to 4 here as well
+  family: 4 
+});
+
+// Log if the connection is actually working on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("Nodemailer Fix Failed. Error details:", error.message);
+  } else {
+    console.log("SudhaarX Email System: SUCCESS - Connected via IPv4");
   }
 });
 
