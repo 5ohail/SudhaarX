@@ -10,17 +10,20 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // Updated import
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Ionicons } from "@expo/vector-icons";
 
-// --- Configuration ---
-const API_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || ''; 
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
+// --- CONFIG ---
+const API_BASE_URL: string = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+const API_KEY: string = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 const CATEGORIES = [
@@ -28,272 +31,369 @@ const CATEGORIES = [
   "Potholes",
   "Garbage",
   "Sewerage Issue",
+  "Broken Sidewalk",
+  "Stray Animal Menace",
+  "Water Pipe Leakage",
+  "Traffic Signal Failure",
+  "Illegal Construction",
+  "Fallen Trees",
+  "Vandalism & Graffiti",
   "Miscellaneous Issue",
-];
+] as const;
 
-const Reports = () => {
+type CategoryType = typeof CATEGORIES[number];
+
+const Reports: React.FC = () => {
   const params = useLocalSearchParams();
+  const categoryParam = params.category as string | undefined;
+
+  // --- UI STEPS & LOADING ---
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
 
-  // --- Form State ---
-  const [image, setImage] = useState<{ uri: string; name: string; type: string; base64?: string } | null>(null);
+  // --- FORM DATA ---
+  const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState((params.category as string) || "");
+  const [category, setCategory] = useState<CategoryType | "">((categoryParam as CategoryType) || "");
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
-  const [severity, setSeverity] = useState<number>(3); 
-  const [estimatedTime, setEstimatedTime] = useState<string>("3 Days");
+  const [severity, setSeverity] = useState(3);
+  const [estimatedTime, setEstimatedTime] = useState("3 Days");
 
-  // --- Auth State ---
-  const [phoneNumber, setPhoneNumber] = useState("");
+  // --- EMAIL OTP STATE ---
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
 
-  // --- Fetch User Data with Token to fix 401 ---
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const userStr = await AsyncStorage.getItem("user");
-        const token = await AsyncStorage.getItem("userToken"); // Ensure your login saves the token here
-        
-        if (!userStr) return;
-        const parsedUser = JSON.parse(userStr);
-        const userId = parsedUser.id || parsedUser._id;
-
-        const response = await axios.get(`${API_BASE_URL}/users/profile/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (response.data.phoneNumber) {
-          setPhoneNumber(response.data.phoneNumber);
-        }
-      } catch (err: any) {
-        console.error("Auth Error (401?):", err.response?.status, err.message);
-        // If 401, you might want to redirect to login
-        if (err.response?.status === 401) {
-            Alert.alert("Session Expired", "Please login again.");
-            router.replace("/login");
-        }
-      }
-    };
-    fetchUserData();
+    fetchUserEmail();
   }, []);
 
-  // --- Handlers ---
+  const fetchUserEmail = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem("user");
+      if (userStr) {
+        const parsed = JSON.parse(userStr);
+        setEmail(parsed.email || "");
+      }
+    } catch (e) {
+      console.error("Error fetching user email from storage");
+    }
+  };
+
+  // 📸 CAMERA LOGIC
   const pickImage = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") return Alert.alert("Denied", "Camera access required.");
-    
+    if (status !== "granted") return Alert.alert("Permission Required", "Camera access is needed.");
+
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.5,
+      quality: 0.4,
       base64: true,
     });
 
-    if (!result.canceled) {
-      const asset = result.assets[0];
-      setImage({
-        uri: asset.uri,
-        name: asset.fileName || `photo_${Date.now()}.jpg`,
-        type: "image/jpeg",
-        base64: asset.base64 || undefined,
-      });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImage(result.assets[0]);
     }
   };
 
+  // 🤖 AI ANALYSIS (GEMINI 1.5/2.5 FLASH)
   const handleAiClassification = async () => {
-    if (!image?.base64) return setStep(2);
+    if (!image?.base64) return Alert.alert("Missing Photo", "Please take a photo first.");
+
+    setStep(2);
+    setIsScanning(true);
+
     try {
-      setLoading(true);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Analyze civic issue. Return JSON: {"category": "one of [${CATEGORIES.join(", ")}]", "severity": 1-5, "estimatedTime": "string"}`;
-      const result = await model.generateContent([prompt, { inlineData: { data: image.base64, mimeType: "image/jpeg" } }]);
-      const aiData = JSON.parse(result.response.text().trim().replace(/```json|```/g, ""));
-      
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent([
+        `Analyze this civic issue image. Return JSON ONLY: {"category": "one of [${CATEGORIES.join(", ")}]", "severity": 1-5, "estimatedTime": "e.g. 48 Hours"}`,
+        { inlineData: { data: image.base64, mimeType: "image/jpeg" } },
+      ]);
+
+      const response = await result.response;
+      const text = response.text();
+      const clean = text.replace(/```json|```/g, "").trim();
+      const aiData = JSON.parse(clean);
+
       setCategory(CATEGORIES.includes(aiData.category) ? aiData.category : "Miscellaneous Issue");
       setSeverity(aiData.severity || 3);
       setEstimatedTime(aiData.estimatedTime || "3 Days");
-      setStep(2);
     } catch (err) {
-      setStep(2);
+      console.error("Gemini Error:", err);
+      setCategory("Miscellaneous Issue");
     } finally {
-      setLoading(false);
+      setIsScanning(false);
     }
   };
 
+  // 📍 GPS LOGIC
   const getLocation = async () => {
+    setLoading(true);
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return Alert.alert("Denied", "Permission required.");
+    if (status !== "granted") {
+      setLoading(false);
+      return Alert.alert("Permission Denied");
+    }
+
     try {
-      const coords = await Location.getCurrentPositionAsync({});
+      const coords = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const addr = await Location.reverseGeocodeAsync(coords.coords);
-      const address = addr.length > 0 ? `${addr[0].name || ''}, ${addr[0].city || ''}` : "Unknown";
-      setLocation({ latitude: coords.coords.latitude, longitude: coords.coords.longitude, address });
-    } catch (err) {
-      Alert.alert("Error", "GPS failed.");
-    }
-  };
-
-  const handleSendOtp = async () => {
-    if (!phoneNumber) return Alert.alert("Error", "No registered number found.");
-    try {
-      setLoading(true);
-      await axios.post(`${API_BASE_URL}/auth/send-otp`, { phoneNumber });
-      setIsOtpSent(true);
-      Alert.alert("Sent", `OTP sent to ${phoneNumber}`);
-    } catch (err) {
-      Alert.alert("Error", "Failed to send OTP.");
+      setLocation({
+        latitude: coords.coords.latitude,
+        longitude: coords.coords.longitude,
+        address: addr[0] ? `${addr[0].name || ''}, ${addr[0].city || ''}` : "Detected Location",
+      });
+    } catch (e) {
+      Alert.alert("GPS Error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyAndSubmit = async () => {
+  // 🔐 BACKEND EMAIL OTP (NODEMAILER)
+  const handleSendEmailOtp = async () => {
+    if (!email) return Alert.alert("Error", "No email found for this account.");
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/auth/verify-otp`, { phoneNumber, otp });
+      const response = await axios.post(`${API_BASE_URL}/auth/send-otp-email`, { email });
       if (response.data.success) {
-        await handleSubmit();
-      } else {
-        Alert.alert("Error", "Invalid OTP.");
+        setIsOtpSent(true);
+        Alert.alert("Code Sent", `A verification code has been sent to ${email}`);
       }
-    } catch (err) {
-      Alert.alert("Error", "Verification failed.");
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.message || "Failed to send email OTP.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async () => {
-    const token = await AsyncStorage.getItem("userToken");
-    const formData = new FormData();
-    formData.append("category", category);
-    formData.append("description", description);
-    formData.append("latitude", String(location?.latitude));
-    formData.append("longitude", String(location?.longitude));
-    formData.append("address", location?.address || "");
-    formData.append("phoneNumber", phoneNumber);
-    formData.append("severity", String(severity));
-    if (image) formData.append("image", { uri: image.uri, type: image.type, name: image.name } as any);
+  const handleVerifyEmailOtp = async () => {
+    if (otp.length < 6) return Alert.alert("Invalid Code", "Please enter the 6-digit code.");
+    
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/verify-otp-email`, { email, otp });
+      if (response.data.success) {
+        setIsVerified(true);
+        Alert.alert("Verified", "Your identity has been confirmed via email.");
+      }
+    } catch (err: any) {
+      Alert.alert("Verification Failed", err.response?.data?.message || "Invalid or expired code.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    await axios.post(`${API_BASE_URL}/issues`, formData, {
-      headers: { 
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${token}` 
-      },
-    });
-    setStep(5);
+  // 📤 FINAL SUBMISSION
+  const finalSubmission = async () => {
+    if (!isVerified) return Alert.alert("Verification Required", "Please verify your email first.");
+    setLoading(true);
+
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const userStr = await AsyncStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : {};
+
+      const formData = new FormData();
+      formData.append("category", category);
+      formData.append("description", description);
+      formData.append("latitude", String(location?.latitude));
+      formData.append("longitude", String(location?.longitude));
+      formData.append("address", location?.address || "");
+      formData.append("reportedBy", user.username || "Anonymous");
+      formData.append("email", email);
+
+      if (image) {
+        // @ts-ignore
+        formData.append("image", { uri: image.uri, type: "image/jpeg", name: "issue_photo.jpg" });
+      }
+
+      await axios.post(`${API_BASE_URL}/issues`, formData, {
+        headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` },
+      });
+      setStep(5);
+    } catch (err) {
+      const e = err as AxiosError;
+      Alert.alert("Submission Failed", e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Progress Bar */}
-      <View style={styles.statusBarContainer}>
-        {[1, 2, 3, 4, 5].map((s) => (
-          <View key={s} style={[styles.statusStep, step >= s ? styles.statusStepActive : styles.statusStepInactive]} />
-        ))}
-      </View>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-        {step === 1 && (
-          <View>
-            <Text style={styles.header}>Step 1: Capture Issue</Text>
-            <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
-              {image ? <Image source={{ uri: image.uri }} style={styles.previewImage} /> : <Text>📷 Take a photo</Text>}
-            </TouchableOpacity>
-            <TextInput style={[styles.input, { height: 80 }]} placeholder="Description..." value={description} onChangeText={setDescription} multiline />
-          </View>
-        )}
-
-        {step === 2 && (
-          <View>
-            <Text style={styles.header}>Step 2: Analysis</Text>
-            <View style={styles.aiBox}><Text style={styles.aiText}>Severity: {severity}/5 | Est: {estimatedTime}</Text></View>
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity key={cat} style={[styles.categoryBtn, category === cat && styles.categoryBtnActive]} onPress={() => setCategory(cat)}>
-                <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {step === 3 && (
-          <View>
-            <Text style={styles.header}>Step 3: Location</Text>
-            <TouchableOpacity style={styles.locBtn} onPress={getLocation}><Text style={styles.locText}>📍 Use GPS</Text></TouchableOpacity>
-            {location && <Text style={styles.locationPreview}>{location.address}</Text>}
-          </View>
-        )}
-
-        {step === 4 && (
-          <View>
-            <Text style={styles.header}>Step 4: Verify</Text>
-            <View style={styles.disabledInput}><Text>{phoneNumber || "Fetching number..."}</Text></View>
-            {!isOtpSent ? (
-               <TouchableOpacity style={styles.locBtn} onPress={handleSendOtp} disabled={!phoneNumber}><Text style={styles.locText}>Send OTP</Text></TouchableOpacity>
-            ) : (
-              <TextInput style={styles.input} placeholder="Enter OTP" keyboardType="number-pad" value={otp} onChangeText={setOtp} />
-            )}
-          </View>
-        )}
-
-        {step === 5 && (
-          <View style={styles.centered}>
-            <Text style={styles.successIcon}>✅</Text>
-            <Text style={styles.successText}>Report Submitted!</Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {step < 5 && (
-        <View style={styles.navigationRow}>
-          {step > 1 && (
-            <TouchableOpacity style={[styles.navBtn, styles.prevBtn]} onPress={() => setStep(step - 1)}>
-              <Text style={styles.prevBtnText}>Back</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.navBtn}
-            disabled={loading || (step === 3 && !location)}
-            onPress={() => step === 1 ? handleAiClassification() : step === 3 ? setStep(4) : step === 4 ? handleVerifyAndSubmit() : setStep(step + 1)}
-          >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{step === 4 ? "Verify & Submit" : "Next"}</Text>}
-          </TouchableOpacity>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <Text style={styles.title}>SudhaarX Report</Text>
+          {step < 5 && <Text style={styles.stepBadge}>Step {step}/4</Text>}
         </View>
-      )}
+
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {step === 1 && (
+            <View style={styles.card}>
+              <Text style={styles.label}>1. Capture Evidence</Text>
+              <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+                {image ? <Image source={{ uri: image.uri }} style={styles.fullImage} /> : (
+                  <View style={styles.placeholder}>
+                    <Ionicons name="camera-outline" size={50} color="#008545" />
+                    <Text style={styles.placeholderText}>Take a Photo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Describe the issue in detail..."
+                value={description}
+                onChangeText={setDescription}
+                multiline
+              />
+            </View>
+          )}
+
+          {step === 2 && (
+            <View style={styles.card}>
+              <Text style={styles.label}>2. AI Verification</Text>
+              {isScanning ? <ActivityIndicator size="large" color="#008545" /> : (
+                <View style={styles.aiBox}>
+                  <Text style={styles.aiText}><Text style={styles.bold}>Category:</Text> {category}</Text>
+                  <Text style={styles.aiText}><Text style={styles.bold}>Severity:</Text> {severity}/5</Text>
+                  <Text style={styles.aiText}><Text style={styles.bold}>Est. Resolution:</Text> {estimatedTime}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {step === 3 && (
+            <View style={styles.card}>
+              <Text style={styles.label}>3. Tag Location</Text>
+              <TouchableOpacity style={styles.locationBtn} onPress={getLocation}>
+                <Ionicons name="location-outline" size={20} color="#fff" />
+                <Text style={styles.btnText}>Get Current GPS</Text>
+              </TouchableOpacity>
+              {location && (
+                <View style={styles.addressBox}>
+                   <Ionicons name="checkmark-circle" size={18} color="#008545" />
+                   <Text style={styles.addressText}>{location.address}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {step === 4 && (
+            <View style={styles.card}>
+              <Text style={styles.label}>4. Email Verification</Text>
+              {isVerified ? (
+                <View style={styles.userBox}>
+                  <Ionicons name="shield-checkmark" size={50} color="#008545" />
+                  <Text style={styles.userText}>Verified: {email}</Text>
+                </View>
+              ) : (
+                <View>
+                  {!isOtpSent ? (
+                    <View>
+                      <Text style={styles.subLabel}>Verify submission via: {email}</Text>
+                      <TouchableOpacity style={styles.primaryBtn} onPress={handleSendEmailOtp}>
+                        <Text style={styles.btnText}>Get Verification Code</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View>
+                      <TextInput 
+                        style={styles.otpInput} 
+                        value={otp} 
+                        onChangeText={setOtp} 
+                        placeholder="Enter 6-digit OTP" 
+                        keyboardType="number-pad"
+                        maxLength={6}
+                      />
+                      <TouchableOpacity style={styles.primaryBtn} onPress={handleVerifyEmailOtp}>
+                        <Text style={styles.btnText}>Verify Code</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setIsOtpSent(false)}>
+                        <Text style={styles.linkText}>Resend Code</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {step === 5 && (
+            <View style={styles.successBox}>
+              <Ionicons name="checkmark-done-circle" size={120} color="#008545" />
+              <Text style={styles.successTitle}>Report Submitted!</Text>
+              <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace("/(tabs)/location")}>
+                <Text style={styles.btnText}>Finish</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {step < 5 && (
+            <View style={styles.navRow}>
+              {step > 1 && (
+                <TouchableOpacity style={styles.backBtn} onPress={() => setStep(step - 1)}>
+                  <Text style={styles.backBtnText}>Back</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.nextBtn, (step === 3 && !location) ? styles.disabled : null]}
+                disabled={loading || (step === 3 && !location)}
+                onPress={() => {
+                  if (step === 1) handleAiClassification();
+                  else if (step === 3) setStep(4);
+                  else if (step === 4) finalSubmission();
+                  else setStep(step + 1);
+                }}
+              >
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.nextBtnText}>{step === 4 ? "Final Submit" : "Continue"}</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#F9FAFB" },
-  statusBarContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-  statusStep: { flex: 1, height: 4, borderRadius: 2, marginHorizontal: 2 },
-  statusStepActive: { backgroundColor: "#008545" },
-  statusStepInactive: { backgroundColor: "#E5E7EB" },
-  header: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
-  aiBox: { padding: 10, backgroundColor: "#E8F5E9", borderRadius: 8, marginBottom: 15 },
-  aiText: { color: "#008545", fontWeight: "bold" },
-  uploadBox: { borderWidth: 2, borderStyle: 'dashed', borderColor: "#D1D5DB", height: 180, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 15 },
-  previewImage: { width: "100%", height: "100%", borderRadius: 10 },
-  input: { backgroundColor: "#fff", borderRadius: 10, padding: 12, marginVertical: 8, borderWidth: 1, borderColor: "#E5E7EB" },
-  disabledInput: { backgroundColor: "#F3F4F6", borderRadius: 10, padding: 15, marginVertical: 10, borderWidth: 1, borderColor: "#D1D5DB" },
-  categoryBtn: { padding: 14, borderRadius: 10, backgroundColor: "#fff", marginBottom: 10, borderWidth: 1, borderColor: "#E5E7EB" },
-  categoryBtnActive: { backgroundColor: "#008545" },
-  categoryText: { color: "#374151" },
-  categoryTextActive: { color: "#fff" },
-  locBtn: { padding: 16, backgroundColor: "#3B82F6", borderRadius: 10, alignItems: "center" },
-  locText: { color: "#fff", fontWeight: "bold" },
-  locationPreview: { textAlign: "center", marginTop: 10, color: "#6B7280" },
-  navigationRow: { flexDirection: "row", gap: 10 },
-  navBtn: { flex: 2, padding: 16, backgroundColor: "#008545", borderRadius: 12, alignItems: "center" },
-  prevBtn: { flex: 1, backgroundColor: "#fff", borderWidth: 1, borderColor: "#D1D5DB" },
-  btnText: { color: "#fff", fontWeight: "bold" },
-  prevBtnText: { color: "#374151" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
-  successIcon: { fontSize: 60 },
-  successText: { fontSize: 20, fontWeight: "bold", color: "#008545" },
+  container: { flex: 1, backgroundColor: "#F5F7F6" },
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: '900', color: '#1A1A1A' },
+  stepBadge: { backgroundColor: '#E8F5E9', color: '#008545', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, fontWeight: '800', fontSize: 12 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  card: { backgroundColor: '#fff', borderRadius: 24, padding: 25, elevation: 5, marginBottom: 20 },
+  label: { fontSize: 18, fontWeight: '800', marginBottom: 15, color: '#333' },
+  subLabel: { fontSize: 14, color: '#666', marginBottom: 15 },
+  imagePicker: { height: 220, backgroundColor: '#F9FAF9', borderRadius: 20, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderStyle: 'dashed', borderWidth: 2, borderColor: '#008545' },
+  placeholder: { alignItems: 'center' },
+  placeholderText: { color: '#008545', fontWeight: 'bold', marginTop: 10 },
+  fullImage: { width: '100%', height: '100%' },
+  textArea: { backgroundColor: '#F5F7F6', borderRadius: 15, padding: 15, marginTop: 15, height: 120, textAlignVertical: 'top', color: '#333' },
+  aiBox: { padding: 5 },
+  aiText: { fontSize: 17, color: '#444', marginBottom: 8 },
+  bold: { fontWeight: 'bold', color: '#1A1A1A' },
+  locationBtn: { backgroundColor: '#007AFF', padding: 18, borderRadius: 15, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
+  primaryBtn: { backgroundColor: '#008545', padding: 18, borderRadius: 15, alignItems: 'center', marginTop: 10 },
+  btnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  addressBox: { flexDirection: 'row', alignItems: 'center', marginTop: 15, gap: 10 },
+  addressText: { color: '#008545', fontWeight: 'bold' },
+  otpInput: { backgroundColor: '#F5F7F6', borderRadius: 12, padding: 15, fontSize: 18, marginBottom: 10, borderWidth: 1, borderColor: '#DDD', textAlign: 'center', letterSpacing: 5 },
+  linkText: { color: '#007AFF', textAlign: 'center', marginTop: 15, fontWeight: 'bold' },
+  navRow: { flexDirection: 'row', gap: 12, marginTop: 5 },
+  nextBtn: { flex: 2, backgroundColor: '#008545', padding: 20, borderRadius: 18, alignItems: 'center' },
+  backBtn: { flex: 1, backgroundColor: '#fff', padding: 20, borderRadius: 18, alignItems: 'center', borderWidth: 1, borderColor: '#DDD' },
+  nextBtnText: { color: '#fff', fontWeight: '900', fontSize: 17 },
+  backBtnText: { color: '#666', fontWeight: 'bold' },
+  disabled: { opacity: 0.5 },
+  successBox: { alignItems: 'center', padding: 30 },
+  successTitle: { fontSize: 26, fontWeight: '900', color: '#008545', marginTop: 10 },
+  homeBtn: { backgroundColor: '#008545', padding: 18, borderRadius: 15, width: '100%', alignItems: 'center', marginTop: 30 },
+  userBox: { alignItems: 'center' },
+  userText: { fontWeight: 'bold', color: '#008545', fontSize: 16 }
 });
 
 export default Reports;

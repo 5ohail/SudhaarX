@@ -4,64 +4,45 @@
     "slug": "SudhaarX",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/SudhaarX.png",
+    "icon": "./assets/images/SudhaarX.jpeg",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Allow SudhaarX to access your location to show nearby civic issues.",
-        "NSLocationAlwaysUsageDescription": "Allow SudhaarX to access your location even when the app is not in use."
-      }
+      "bundleIdentifier": "com.SudhaarX.app"
     },
-    
     "android": {
+      "package": "com.SudhaarX.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/SudhaarX.png",
+        "foregroundImage": "./assets/images/SudhaarX.jpeg",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.SudhaarX.app"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "config": {
+        "googleMaps": {
+          "apiKey": "" 
+        }
+      }
     },
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow SudhaarX to access your location even when the app is closed or not in use.",
-          "locationWhenInUsePermission": "Allow SudhaarX to access your location while using the app."
+          "locationWhenInUsePermission": "Allow SudhaarX to access location."
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
       "router": {},
       "eas": {
         "projectId": "fd7ddc31-875b-49a7-beb5-c8a29eff63e4"
       }
+    }
   }
-}
 }

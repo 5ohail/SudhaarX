@@ -134,9 +134,9 @@ userRouter.get("/:username", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-userRouter.get("/profile/:id", async (req, res) => {
-  try {    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: "User not found" });  
+userRouter.get("/profile/:email", async (req, res) => {
+  try {    const user = await User.findOne({ email: req.params.email });
+    if (!user) return res.status(404).json({ message: "User not found" }); 
     res.json({  username: user.username,    email: user.email,    profileImage: user.profileImage || null,    phone: user.phone || null,  });
   } catch (err) {    res.status(500).json({ message: "Server error" });  }
 }

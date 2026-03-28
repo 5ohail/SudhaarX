@@ -1,7 +1,7 @@
 import BottomNavbar from "@/components/Navbar";
 import { Stack } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, View, StyleSheet } from "react-native";
+import {  useState } from "react";
+import { Image,  StyleSheet } from "react-native";
 // 1. Import the Provider
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -10,17 +10,15 @@ export default function Layout() {
 
   const headerLogo = () => (
     <Image
-      source={require("@/assets/images/SudhaarX.png")}
+      source={require("@/assets/images/SudhaarX.jpeg")}
       style={styles.logo}
       resizeMode="contain"
     />
   );
-
   return (
     // 2. Wrap everything in SafeAreaProvider
     <SafeAreaProvider>
       <Stack initialRouteName={"index"}>
-        {/* ... your Stack.Screens stay the same ... */}
         <Stack.Screen name="onBoarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="index"

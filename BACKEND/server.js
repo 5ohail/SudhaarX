@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import userRouter from "./routes/user.routes.js";
@@ -5,9 +6,9 @@ import issueRouter from "./routes/issue.routes.js";
 import connectDB from "./db/db.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
 
-dotenv.config();
+import authRouter from "./routes/auth.routes.js";
+
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -27,6 +28,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 app.use("/api/users", userRouter);
 app.use("/api/issues", issueRouter);
+app.use("/api/auth", authRouter);
 
 // Start server
 const start = async () => {
