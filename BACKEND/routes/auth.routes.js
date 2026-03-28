@@ -1,7 +1,8 @@
 import express from 'express';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import dns from 'dns';
+import dns from 'node:dns';
+dns.setDefaultResultOrder('ipv4first');
 import User from '../models/userModel.js';
 
 const authRouter = express.Router();
