@@ -161,9 +161,9 @@ export default function ReportsScreen() {
         return;
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
       const prompt = `Analyze this civic problem photo. Return JSON ONLY with keys:
-      {"category": "one of [${CATEGORIES.join(", ")}]", "severity": 1-5, "estimatedTime": "e.g. 48 Hours", "suggestedDescription": "brief description", "confidence": "e.g. 94%"}`;
+      {"category": "one of [${CATEGORIES.join(", ")}]", "severity": 1-5, "estimaterdTime": "e.g. 48 Hours", "suggestedDescription": "brief description", "confidence": "e.g. 94%"}`;
 
       const result = await model.generateContent([
         prompt,
