@@ -1,19 +1,22 @@
-import { Ionicons } from "@expo/vector-icons";
-import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, TouchableOpacity, View, Platform } from "react-native";
+import { StyleSheet, TouchableOpacity, View, Text, useColorScheme } from "react-native";
+import { usePathname, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-// 1. Import the hook
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Palette, Typography, Spacing } from "@/constants/theme";
 
-const BottomNavbar: React.FC = () => {
+export const BottomNavbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const insets = useSafeAreaInsets(); // 2. Initialize insets
+  const insets = useSafeAreaInsets();
+  const scheme = useColorScheme() || "light";
+  const isDark = scheme === "dark";
+  const colors = isDark ? Palette.dark : Palette.light;
 
   const [activeRoute, setActiveRoute] = useState("/");
-  const [isAdmin, setIsAdmin] = useState(true);
-  
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
     setActiveRoute(
       pathname.split("/")[1] ? `/${pathname.split("/")[1]}` : "/"
@@ -21,65 +24,83 @@ const BottomNavbar: React.FC = () => {
   }, [pathname]);
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkUserRole = async () => {
       try {
         const userData = await AsyncStorage.getItem("user");
         if (!userData) return;
         const user = JSON.parse(userData);
-        if (user.userType === "admin") {
+        const role = (user.userType || "").toUpperCase();
+        if (role === "ADMIN" || role === "SUPER_ADMIN" || role === "OFFICER") {
           setIsAdmin(true);
         }
       } catch (error) {
-        console.error("Error checking admin status:", error);
+        console.error("Error checking role:", error);
       }
     };
-    checkAdmin();
+    checkUserRole();
   }, []);
 
   const adminTabs = [
-    { name: "Nearby", icon: "compass-outline", route: "/nearbyIssues" },
-    { name: "Assign", icon: "people-outline", route: "/assignWorker" },
-    { name: "Resolve", icon: "checkmark-circle-outline", route: "/resolveIssues" },
-    { name: "Profile", icon: "person-outline", route: "/profile" },
+    { name: "Nearby", icon: "compass-outline", activeIcon: "compass", route: "/nearbyIssues" },
+    { name: "Assign", icon: "people-outline", activeIcon: "people", route: "/assignWorker" },
+    { name: "Resolve", icon: "checkmark-circle-outline", activeIcon: "checkmark-circle", route: "/resolveIssues" },
+    { name: "Profile", icon: "person-outline", activeIcon: "person", route: "/profile" },
   ];
 
   const userTabs = [
-    { name: "Home", icon: "home-outline", route: "/" },
-    { name: "Nearby", icon: "compass-outline", route: "/nearbyIssues" },
-    { name: "Report", icon: "document-text-outline", route: "/reports" },
-    { name: "Trace", icon: "map-outline", route: "/trace" },
-    { name: "Profile", icon: "person-outline", route: "/profile" },
+    { name: "Home", icon: "home-outline", activeIcon: "home", route: "/" },
+    { name: "Nearby", icon: "compass-outline", activeIcon: "compass", route: "/nearbyIssues" },
+    { name: "Report", icon: "add-circle-outline", activeIcon: "add-circle", route: "/reports" },
+    { name: "Radar", icon: "map-outline", activeIcon: "map", route: "/trace" },
+    { name: "Profile", icon: "person-outline", activeIcon: "person", route: "/profile" },
   ];
 
   const tabs = isAdmin ? adminTabs : userTabs;
 
+  // Do not render bottom nav on onboarding screen
+  if (pathname === "/onboarding") return null;
+
   return (
-    <View 
+    <View
       style={[
-        styles.container, 
-        { 
-          // 3. Apply dynamic padding based on device navigation type
-          // If insets.bottom is 0 (buttons), we add a default 10px.
-          // If insets.bottom is > 0 (gestures), we use the system value.
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
-          height: 60 + (insets.bottom > 0 ? insets.bottom : 12) 
-        }
+        styles.container,
+        {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
+          height: 60 + (insets.bottom > 0 ? insets.bottom : 10),
+        },
       ]}
     >
       {tabs.map((tab) => {
         const isActive = activeRoute === tab.route;
+        const iconName = isActive ? tab.activeIcon : tab.icon;
 
         return (
           <TouchableOpacity
             key={tab.name}
             style={styles.tab}
+            activeOpacity={0.7}
             onPress={() => router.push(tab.route as any)}
           >
             <Ionicons
-              name={tab.icon as any}
-              size={26}
-              color={isActive ? "#008545" : "#8E8E93"} // Updated to match your theme green
+              name={iconName as any}
+              size={24}
+              color={isActive ? Palette.primary : colors.textMuted}
             />
+            <Text
+              style={[
+                Typography.caption,
+                {
+                  color: isActive ? Palette.primary : colors.textMuted,
+                  fontWeight: isActive ? "800" : "500",
+                  marginTop: 2,
+                  fontSize: 11,
+                },
+              ]}
+            >
+              {tab.name}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -87,22 +108,19 @@ const BottomNavbar: React.FC = () => {
   );
 };
 
+export default BottomNavbar;
+
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "#E5E5EA",
-    backgroundColor: "#ffffff",
-    // Remove hardcoded height from here, we handle it inline now
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 10, // Keep icons centered relative to the bar top
+    paddingTop: 6,
   },
 });
-
-export default BottomNavbar;

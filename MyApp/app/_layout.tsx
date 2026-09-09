@@ -1,13 +1,34 @@
-import BottomNavbar from "@/components/Navbar";
-import { Stack } from "expo-router";
-import {  useState } from "react";
-import { Image,  StyleSheet } from "react-native";
-// 1. Import the Provider
+import React, { useEffect, useState } from "react";
+import { Image, StyleSheet, useColorScheme } from "react-native";
+import { Stack, router } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import Toast from "react-native-toast-message";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import BottomNavbar from "@/components/Navbar";
+import { ONBOARDING_KEY } from "@/app/onboarding";
 
 export default function Layout() {
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(true);
+  const scheme = useColorScheme() || "light";
+  const isDark = scheme === "dark";
+  const [checkedOnboarding, setCheckedOnboarding] = useState(false);
+
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      try {
+        const completed = await AsyncStorage.getItem(ONBOARDING_KEY);
+        if (!completed) {
+          router.replace("/onboarding");
+        }
+      } catch (e) {
+        console.error("Onboarding check error:", e);
+      } finally {
+        setCheckedOnboarding(true);
+      }
+    };
+    checkOnboardingStatus();
+  }, []);
+
   const headerLogo = () => (
     <Image
       source={require("@/assets/images/SudhaarX.jpeg")}
@@ -15,47 +36,64 @@ export default function Layout() {
       resizeMode="contain"
     />
   );
+
   return (
-    // 2. Wrap everything in SafeAreaProvider
     <SafeAreaProvider>
-      <Stack initialRouteName={isAdmin ? "nearbyIssues" : "index"}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <Stack
+        initialRouteName="index"
+        screenOptions={{
+          headerTitleAlign: "center",
+          headerLeft: headerLogo,
+          headerStyle: {
+            backgroundColor: isDark ? "#1A2320" : "#FFFFFF",
+          },
+          headerTitleStyle: {
+            color: isDark ? "#F9FAFB" : "#111827",
+            fontWeight: "800",
+          },
+        }}
+      >
         <Stack.Screen
           name="index"
-          options={{ title: "Civic Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+          options={{ title: "SudhaarX Home" }}
+        />
+        <Stack.Screen
+          name="onboarding"
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="nearbyIssues"
-          options={{ title: "Nearby Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+          options={{ title: "Nearby Civic Issues" }}
         />
-         <Stack.Screen
+        <Stack.Screen
           name="reports"
-          options={{ title: "Report An issue", headerTitleAlign: "center", headerLeft: headerLogo }}
+          options={{ title: "Report an Issue" }}
         />
         <Stack.Screen
           name="trace"
-          options={{ title: "Trace Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+          options={{ title: "Civic Radar Trace" }}
         />
         <Stack.Screen
           name="profile"
-          options={{ title: "Profile", headerTitleAlign: "center", headerLeft: headerLogo }}
+          options={{ title: "Citizen Profile" }}
         />
         <Stack.Screen
           name="assignWorker"
-          options={{ title: "Assign Worker", headerTitleAlign: "center", headerLeft: headerLogo }}
+          options={{ title: "Assign Department Officer" }}
         />
         <Stack.Screen
           name="resolveIssues"
-          options={{ title: "Resolve Issues", headerTitleAlign: "center", headerLeft: headerLogo }}
+          options={{ title: "Resolve Reports" }}
         />
-
       </Stack>
-      
-       <BottomNavbar />
+
+      <BottomNavbar />
+      <Toast />
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  logo: { width: 50, height: 50, marginLeft: 5 },
+  logo: { width: 44, height: 44, marginLeft: 8 },
 });

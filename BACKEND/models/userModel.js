@@ -1,22 +1,40 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  userType: { type: String, enum: ['user', 'admin','superAdmin'], default: 'user' },
-  phone: { type: String, minlength: 10, required: true },
-  isBanned: { type: Boolean, default: false },
-  otp: {
+  username: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    index: true,
+  },
+  userType: {
+    type: String,
+    enum: ["CITIZEN", "OFFICER", "ADMIN", "SUPER_ADMIN", "user", "admin", "superAdmin"],
+    default: "CITIZEN",
+  },
+  profileImage: {
     type: String,
     default: null,
   },
-  otpExpires: {
-    type: Date,
-    default: null,
+  isBanned: {
+    type: Boolean,
+    default: false,
   },
-  createdOn: { type: Date, default: Date.now },
-
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 const User = mongoose.model("User", userSchema);

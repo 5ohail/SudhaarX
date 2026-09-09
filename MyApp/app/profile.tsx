@@ -4,321 +4,331 @@ import {
   ScrollView,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
+  Image,
+  RefreshControl,
+  useColorScheme,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Toast, { BaseToast } from "react-native-toast-message";
-import Login from "@/components/Login";
-import Register from "@/components/Register";
+import Toast from "react-native-toast-message";
 import axios from "axios";
+import { Ionicons } from "@expo/vector-icons";
+import { Palette, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { StatCard } from "@/components/ui/StatCard";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { Login } from "@/components/Login";
 
-const STOCK_IMAGE =
-  "https://images.unsplash.com/photo-1750535135451-7c20e24b60c1?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDExfHx8ZW58MHx8fHx8";
+const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80";
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "https://sudhaarx.onrender.com/api";
 
-const toastConfig = {
-  success: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{ borderLeftColor: "green" }}
-      text1Style={{ fontSize: 18, fontWeight: "bold" }}
-      text2Style={{ fontSize: 12 }}
-    />
-  ),
-  error: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{ borderLeftColor: "red" }}
-      text1Style={{ fontSize: 18, fontWeight: "bold" }}
-      text2Style={{ fontSize: 12 }}
-    />
-  ),
-};
+type FilterType = "ALL" | "Pending" | "In Progress" | "Resolved" | "Rejected";
 
-interface recentData {
-  _id: string;
-  title: string;
-  description: string;
-  category: string;
-  address: string;
-  imageUrl: string;
-  latitude: number;
-  longitude: number;
-  reportedBy: string;
-  status: "Pending" | "Resolved" | "Rejected";
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
+export default function ProfileScreen() {
+  const scheme = useColorScheme() || "light";
+  const isDark = scheme === "dark";
+  const colors = isDark ? Palette.dark : Palette.light;
 
-export default function Profile() {
   const [user, setUser] = useState<any>(null);
-  const [logIn, setLogIn] = useState(true);
-  const [profileImage, setProfileImage] = useState<string>(STOCK_IMAGE);
   const [userToken, setUserToken] = useState<string | null>(null);
-  const [total, setTotal] = useState<number>(0);
-  const [pending, setPending] = useState<number>(0);
-  const [resolved, setResolved] = useState<number>(0);
-  const [rejected, setRejected] = useState<number>(0);
-  const [recent, setRecent] = useState<recentData[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0, rejected: 0 });
+  const [recents, setRecents] = useState<any[]>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("ALL");
 
-  const BASEURL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-  // 1. Initial Load: Only set state if values actually exist
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const savedUser = await AsyncStorage.getItem("user");
-        const token = await AsyncStorage.getItem("userToken");
-        if (savedUser && token) {
-          const parsed = JSON.parse(savedUser);
-          setUser(parsed);
-          setProfileImage(parsed.profileImage || STOCK_IMAGE);
-          setUserToken(token);
-          setLogIn(true);
-        }
-      } catch (e) {
-        console.error("Failed to load user from storage", e);
-      }
-    };
-    loadUser();
-  }, []);
-
-  // 2. Handle Login: Robust safety check for undefined
-  const handleLogin = async (loggedInUser: any, token: string) => {
-    if (!loggedInUser || !token) {
-      console.error("Login failed: User or Token is undefined");
-      return;
+  const cleanBaseUrl = (url: string) => {
+    let clean = url.endsWith("/") ? url.slice(0, -1) : url;
+    if (!clean.endsWith("/api") && !clean.includes("/api/")) {
+      clean += "/api";
     }
+    return clean;
+  };
 
-    setUser(loggedInUser);
-    setUserToken(token);
-    setProfileImage(loggedInUser.profileImage || STOCK_IMAGE);
-
+  const loadUserData = async () => {
     try {
-      await AsyncStorage.setItem("user", JSON.stringify(loggedInUser));
-      await AsyncStorage.setItem("userToken", token);
-      setLogIn(true);
+      const savedUser = await AsyncStorage.getItem("user");
+      const token = await AsyncStorage.getItem("userToken");
+      if (savedUser && token) {
+        const parsed = JSON.parse(savedUser);
+        setUser(parsed);
+        setUserToken(token);
+        fetchUserData(parsed.username);
+      }
     } catch (e) {
-      console.error("Error saving user data", e);
+      console.error("Profile load error:", e);
     }
   };
 
-  // 3. User Sync Effect: Cleaned up to avoid passing undefined
+  const fetchUserData = async (username: string) => {
+    if (!username) return;
+    try {
+      const url = cleanBaseUrl(BASE_URL);
+      const statsRes = await axios.post(`${url}/issues/getData`, { username });
+      setStats({
+        total: statsRes.data.total || 0,
+        pending: statsRes.data.pending || 0,
+        resolved: statsRes.data.resolved || 0,
+        rejected: statsRes.data.rejected || 0,
+      });
+
+      const recentsRes = await axios.post(`${url}/issues/recent`, { username });
+      setRecents(Array.isArray(recentsRes.data) ? recentsRes.data : []);
+    } catch (err) {
+      console.error("Profile metrics fetch error:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const syncUser = async () => {
-      if (user) {
-        await AsyncStorage.setItem("user", JSON.stringify(user));
-      } else {
-        // Instead of setting "null", we remove the key entirely
-        await AsyncStorage.removeItem("user");
-      }
-    };
-    syncUser();
-  }, [user]);
+    loadUserData();
+  }, []);
 
-  // 4. Fetch Stats
-  useEffect(() => {
-    if (!user?.username || !userToken) return;
-    const fetchStats = async () => {
-      try {
-        const { data } = await axios.post(`${BASEURL}/issues/getData`, {
-          username: user.username,
-        });
-        setPending(data.pending || 0);
-        setTotal(data.total || 0);
-        setResolved(data.resolved || 0);
-        setRejected(data.rejected || 0);
-      } catch (err) {
-        console.error("Error fetching issue stats:", err);
-      }
-    };
-    fetchStats();
-  }, [user, userToken]);
-
-  // 5. Fetch Recents
-  useEffect(() => {
-    if (!user?.username || !userToken) return;
-
-    const fetchRecents = async () => {
-      try {
-        const { data } = await axios.post(`${BASEURL}/issues/recent`, {
-          username: user.username,
-        });
-        setRecent(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.log("Error fetching recents:", error);
-      }
-    };
-
-    fetchRecents();
-  }, [user, userToken]);
+  const handleLoginSuccess = async (loggedInUser: any, token: string) => {
+    setUser(loggedInUser);
+    setUserToken(token);
+    try {
+      await AsyncStorage.setItem("user", JSON.stringify(loggedInUser));
+      await AsyncStorage.setItem("userToken", token);
+      fetchUserData(loggedInUser.username);
+    } catch (e) {
+      console.error("Error storing login state", e);
+    }
+  };
 
   const handleLogout = async () => {
     setUser(null);
-    setProfileImage(STOCK_IMAGE);
     setUserToken(null);
     try {
       await AsyncStorage.removeItem("user");
       await AsyncStorage.removeItem("userToken");
-      setLogIn(false);
-      Toast.show({ type: "success", text1: "Logged out" });
+      Toast.show({ type: "success", text1: "Logged out successfully" });
     } catch (e) {
-      console.error("Error during logout", e);
+      console.error("Logout error", e);
     }
   };
 
-  if (!user) {
-    return (
-      <>
-        {logIn ? (
-          <View style={{ flex: 1, backgroundColor: "#fff" }}>
-            <Login
-              user={(val: any) => handleLogin(val?.user, val?.token)}
-              login={setLogIn}
-            />
-          </View>
-        ) : (
-          <View style={{ flex: 1, backgroundColor: "#fff" }}>
-            <Register
-              user={(val: any) => handleLogin(val?.user, val?.token)}
-              login={setLogIn}
-            />
-          </View>
-        )}
-        <Toast config={toastConfig} />
-      </>
-    );
+  const onRefresh = () => {
+    setRefreshing(true);
+    if (user?.username) {
+      fetchUserData(user.username);
+    } else {
+      loadUserData();
+    }
+  };
+
+  // If user is not logged in, render clean Email OTP Login
+  if (!user || !userToken) {
+    return <Login onSuccess={handleLoginSuccess} />;
   }
 
+  // Calculate Civic Impact Score
+  const impactScore = stats.resolved * 50 + stats.total * 10;
+
+  // Filter Recents list
+  const filteredReports = recents.filter((item) => {
+    if (activeFilter === "ALL") return true;
+    if (activeFilter === "Pending") return item.status === "Pending";
+    if (activeFilter === "In Progress") return item.status === "Assigned" || item.status === "IN_PROGRESS";
+    if (activeFilter === "Resolved") return item.status === "Resolved" || item.status === "RESOLVED";
+    if (activeFilter === "Rejected") return item.status === "Rejected" || item.status === "REJECTED";
+    return true;
+  });
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Profile</Text>
-      <View style={styles.avatarContainer}>
-        <Image source={{ uri: profileImage }} style={styles.avatar} />
-        <Text style={styles.name}>{user.username}</Text>
-        <Text style={styles.email}>{user.email}</Text>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Palette.primary]} />}
+    >
+      {/* Profile Header Card */}
+      <Card variant="elevated" style={styles.profileHeaderCard}>
+        <View style={styles.headerRow}>
+          <Image
+            source={{ uri: user.profileImage || DEFAULT_AVATAR }}
+            style={styles.avatar}
+          />
+          <View style={{ flex: 1, marginLeft: Spacing.lg }}>
+            <Text style={[Typography.h1, { color: colors.text }]}>{user.username}</Text>
+            <Text style={[Typography.bodySmall, { color: colors.textSecondary, marginTop: 2 }]}>
+              {user.email}
+            </Text>
+            <View style={[styles.roleBadge, { backgroundColor: Palette.primaryLight }]}>
+              <Text style={[Typography.caption, { color: Palette.primary, fontWeight: "800" }]}>
+                {user.userType || "CITIZEN"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Impact Score Banner */}
+        <View style={[styles.impactBox, { backgroundColor: Palette.primaryLight }]}>
+          <Ionicons name="trophy-outline" size={24} color={Palette.primary} />
+          <View style={{ flex: 1, marginLeft: Spacing.md }}>
+            <Text style={[Typography.caption, { color: Palette.primary, fontWeight: "800" }]}>
+              CIVIC IMPACT SCORE
+            </Text>
+            <Text style={[Typography.h2, { color: Palette.primary }]}>
+              {impactScore} Points
+            </Text>
+          </View>
+        </View>
+      </Card>
+
+      {/* Statistics Section */}
+      <Text style={[Typography.h3, styles.sectionTitle, { color: colors.text }]}>
+        Report Statistics
+      </Text>
+      <View style={styles.statsGrid}>
+        <StatCard title="Total Reports" value={stats.total} iconName="document-text-outline" color="#3B82F6" />
+        <StatCard title="Pending" value={stats.pending} iconName="time-outline" color="#F59E0B" />
+        <StatCard title="Resolved" value={stats.resolved} iconName="checkmark-circle-outline" color="#10B981" />
+        <StatCard title="Rejected" value={stats.rejected} iconName="close-circle-outline" color="#EF4444" />
       </View>
 
-      <View style={styles.cardContainer}>
-        <View style={[styles.card, { backgroundColor: "#3498db" }]}>
-          <Text style={{ ...styles.cardTitle, color: "#fff" }}>Total Issues</Text>
-          <Text style={{ ...styles.cardValue, color: "#fff" }}>{total}</Text>
-        </View>
-        <View style={[styles.card, { backgroundColor: "#f1c40f" }]}>
-          <Text style={styles.cardTitle}>Pending</Text>
-          <Text style={styles.cardValue}>{pending}</Text>
-        </View>
-        <View style={[styles.card, { backgroundColor: "#2ecc71" }]}>
-          <Text style={styles.cardTitle}>Resolved</Text>
-          <Text style={styles.cardValue}>{resolved}</Text>
-        </View>
-        <View style={[styles.card, { backgroundColor: "#e74c3c" }]}>
-          <Text style={{ ...styles.cardTitle, color: "#fff" }}>Rejected</Text>
-          <Text style={{ ...styles.cardValue, color: "#fff" }}>{rejected}</Text>
-        </View>
-      </View>
+      {/* Filterable Reports Section */}
+      <Text style={[Typography.h3, styles.sectionTitle, { color: colors.text }]}>
+        My Civic Reports
+      </Text>
 
-      <Text style={styles.header}>Recents</Text>
-      {recent.length !== 0 ? (
-        <View>
-          {recent.map((issue) => {
-            let bgc = "#727272";
-            if (issue.status === "Pending") bgc = "#d1b800";
-            if (issue.status === "Resolved") bgc = "#0b8900";
-            if (issue.status === "Rejected") bgc = "#ff0000";
+      {/* Filter Tabs */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
+        {(["ALL", "Pending", "In Progress", "Resolved", "Rejected"] as FilterType[]).map((f) => (
+          <TouchableOpacity
+            key={f}
+            onPress={() => setActiveFilter(f)}
+            style={[
+              styles.filterTab,
+              {
+                backgroundColor: activeFilter === f ? Palette.primary : colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[Typography.caption, { color: activeFilter === f ? "#FFF" : colors.text, fontWeight: "700" }]}>
+              {f}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
-            return (
-              <View style={styles.recentCard} key={issue._id}>
-                <Text style={styles.recentHeading}>{issue.category}</Text>
-                <Text style={styles.recentDescription}>{issue.description}</Text>
-                <Text style={[styles.recentStatus, { backgroundColor: bgc }]}>
-                  {issue.status}
+      {/* Reports List */}
+      {filteredReports.length > 0 ? (
+        filteredReports.map((item) => (
+          <Card key={item._id} variant="outlined" style={styles.reportCard}>
+            <View style={styles.reportRow}>
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={styles.reportImg} />
+              ) : (
+                <View style={[styles.reportImg, { backgroundColor: colors.inputBackground, justifyContent: "center", alignItems: "center" }]}>
+                  <Ionicons name="image-outline" size={24} color={colors.textMuted} />
+                </View>
+              )}
+              <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                <Text style={[Typography.bodyBold, { color: colors.text }]}>{item.category}</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
+                  {item.address}
                 </Text>
+                <View style={styles.chipRow}>
+                  <StatusChip status={item.status} size="small" />
+                  <Text style={[Typography.caption, { color: colors.textMuted, marginLeft: Spacing.md }]}>
+                    {new Date(item.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
               </View>
-            );
-          })}
-        </View>
+            </View>
+          </Card>
+        ))
       ) : (
-        <Text style={{ color: "#727272", fontWeight: "300", fontSize: 14 }}>
-          No Issue Reported 😔
-        </Text>
+        <Card variant="flat" style={styles.emptyCard}>
+          <Ionicons name="file-tray-outline" size={40} color={colors.textMuted} />
+          <Text style={[Typography.bodyBold, { color: colors.textSecondary, marginTop: Spacing.sm }]}>
+            No reports found for "{activeFilter}"
+          </Text>
+        </Card>
       )}
 
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: "#e74c3c", marginTop: 20 }]}
+      {/* Logout Action Button */}
+      <Button
+        title="Logout Account"
         onPress={handleLogout}
-      >
-        <Text style={styles.buttonText}>Logout</Text>
-      </TouchableOpacity>
+        variant="danger"
+        size="large"
+        style={{ marginTop: Spacing.giant }}
+        icon={<Ionicons name="log-out-outline" size={20} color="#FFF" />}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    alignItems: "center",
-    backgroundColor: "#fff",
+  container: { flex: 1 },
+  scrollContent: { padding: Spacing.xl, paddingBottom: Spacing.giant * 2 },
+  profileHeaderCard: {
+    marginBottom: Spacing.xl,
   },
-  header: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  button: {
-    backgroundColor: "#2ecc71",
-    padding: 14,
-    borderRadius: 12,
-    width: "100%",
-    alignItems: "center",
-  },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  avatarContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-    position: "relative",
-  },
-  avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
-  name: { fontSize: 20, fontWeight: "bold" },
-  email: { fontSize: 14, color: "#000" },
-  cardContainer: {
+  headerRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginVertical: 20,
-    flexWrap: "wrap",
-  },
-  card: {
-    width: "48%",
-    backgroundColor: "#f1f1f1",
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
     alignItems: "center",
   },
-  cardTitle: { fontSize: 14, color: "#555" },
-  cardValue: { fontSize: 20, fontWeight: "bold", marginTop: 5 },
-  recentCard: {
-    backgroundColor: "#f8f8f8",
-    padding: 12,
-    width: 320,
-    marginBottom: 15,
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
-  recentHeading: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 8,
+  roleBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    marginTop: Spacing.xs,
   },
-  recentDescription: {
-    fontSize: 12,
-    color: "#777",
-    marginBottom: 8,
+  impactBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.lg,
   },
-  recentStatus: {
-    fontSize: 13,
-    color: "#fff",
-    borderRadius: 15,
-    width: 75,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    textAlign: "center",
+  sectionTitle: {
+    marginBottom: Spacing.md,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -Spacing.xs,
+    marginBottom: Spacing.xl,
+  },
+  filterBar: {
+    marginBottom: Spacing.lg,
+  },
+  filterTab: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    marginRight: Spacing.xs,
+  },
+  reportCard: {
+    marginBottom: Spacing.md,
+  },
+  reportRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reportImg: {
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius.md,
+  },
+  chipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.xs,
+  },
+  emptyCard: {
+    alignItems: "center",
+    padding: Spacing.giant,
   },
 });

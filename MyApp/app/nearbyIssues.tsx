@@ -5,69 +5,79 @@ import {
   Text,
   View,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Image,
+  useColorScheme,
 } from "react-native";
 import * as Location from "expo-location";
 import axios from "axios";
-import IssueCard from "@/components/IssueCard";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { Palette, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
+import { Card } from "@/components/ui/Card";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { Skeleton } from "@/components/ui/Skeleton";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "";
-const IMAGE_URL = process.env.EXPO_PUBLIC_IMAGE_URL || "";
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "https://sudhaarx.onrender.com/api";
 
-interface NotificationsProps {
-  userToken: string;
-}
+export default function NearbyIssuesScreen() {
+  const scheme = useColorScheme() || "light";
+  const isDark = scheme === "dark";
+  const colors = isDark ? Palette.dark : Palette.light;
 
-const NearbyIssues = ({ userToken }: NotificationsProps) => {
   const [issues, setIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [locationName, setLocationName] = useState<string>("");
 
-  const fetchIssues = async () => {
+  const cleanBaseUrl = (url: string) => {
+    let clean = url.endsWith("/") ? url.slice(0, -1) : url;
+    if (!clean.endsWith("/api") && !clean.includes("/api/")) {
+      clean += "/api";
+    }
+    return clean;
+  };
+
+  const fetchNearbyIssues = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
+        setErrorMsg("Location permission denied. Please enable GPS to view nearby civic issues.");
+        setLoading(false);
         return;
       }
 
-      const loc = await Location.getCurrentPositionAsync({});
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude, longitude } = loc.coords;
 
-      // Get Address Name
+      // Reverse Geocode
       const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (geo.length > 0) {
-        const { name, city, region } = geo[0];
-        setLocationName(`${name || city || region || "Current Location"}`);
+      if (geo && geo.length > 0) {
+        const { name, street, city, region } = geo[0];
+        setLocationName([name || street, city || region].filter(Boolean).join(", "));
       }
 
-      // API Call
+      const token = await AsyncStorage.getItem("userToken");
+      const url = `${cleanBaseUrl(BASE_URL)}/issues/nearby`;
+
       const { data } = await axios.post(
-        `${API_BASE_URL}/issues/nearby`,
-        { latitude, longitude },
+        url,
+        { latitude, longitude, radius: 5 },
         {
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-          },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         }
       );
 
-      // Map images and Sort by Severity (5 -> 1)
-      const formattedData = (data.issues || [])
-        .map((issue: any) => ({
-          ...issue,
-          imageUrl: issue.imageUrl?.startsWith("http")
-            ? issue.imageUrl
-            : `${IMAGE_URL || API_BASE_URL}${issue.imageUrl}`,
-        }))
-        .sort((a: any, b: any) => b.severity - a.severity);
+      const rawIssues = data.data?.issues || data.issues || [];
+      // Sort by Severity (High -> Low)
+      const sorted = [...rawIssues].sort((a: any, b: any) => b.severity - a.severity);
 
-      setIssues(formattedData);
+      setIssues(sorted);
       setErrorMsg(null);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || "Failed to fetch issues");
+      console.error("Nearby issues error:", err);
+      setErrorMsg(err.response?.data?.message || "Failed to retrieve nearby civic issues.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -75,74 +85,148 @@ const NearbyIssues = ({ userToken }: NotificationsProps) => {
   };
 
   useEffect(() => {
-    fetchIssues();
-  }, [userToken]);
+    fetchNearbyIssues();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchIssues();
+    fetchNearbyIssues();
   };
 
   return (
-    <View style={styles.main}>
-      <View style={styles.headerBox}>
-        <Text style={styles.heading}>
-          <Text style={styles.boldHeading}>📍 Location: </Text>
-          {locationName || "Detecting..."}
-        </Text>
+    <View style={[styles.main, { backgroundColor: colors.background }]}>
+      {/* Location Banner */}
+      <View style={[styles.headerBox, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <Ionicons name="location" size={20} color={Palette.primary} />
+        <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+          <Text style={[Typography.caption, { color: colors.textSecondary }]}>CURRENT LOCATION RADAR</Text>
+          <Text style={[Typography.bodyBold, { color: colors.text }]} numberOfLines={1}>
+            {locationName || "Detecting GPS location..."}
+          </Text>
+        </View>
+        <View style={[styles.badge, { backgroundColor: Palette.primaryLight }]}>
+          <Text style={[Typography.caption, { color: Palette.primary, fontWeight: "800" }]}>5 KM RADIUS</Text>
+        </View>
       </View>
 
-      <ScrollView 
-        style={styles.container} 
-        contentContainerStyle={{ paddingBottom: 50 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Palette.primary]} />}
       >
         {loading ? (
-          <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 30 }} />
+          <View style={{ paddingVertical: Spacing.lg }}>
+            <Skeleton height={140} style={{ borderRadius: BorderRadius.lg, marginBottom: Spacing.md }} />
+            <Skeleton height={140} style={{ borderRadius: BorderRadius.lg, marginBottom: Spacing.md }} />
+            <Skeleton height={140} style={{ borderRadius: BorderRadius.lg, marginBottom: Spacing.md }} />
+          </View>
         ) : errorMsg ? (
-          <Text style={styles.error}>⚠️ {errorMsg}</Text>
+          <Card variant="flat" style={styles.centerCard}>
+            <Ionicons name="alert-circle-outline" size={44} color={Palette.error} />
+            <Text style={[Typography.bodyBold, { color: Palette.error, textAlign: "center", marginTop: Spacing.sm }]}>
+              {errorMsg}
+            </Text>
+          </Card>
         ) : issues.length > 0 ? (
           issues.map((issue) => (
-            <IssueCard
-              key={issue._id}
-              imgUri={issue.imageUrl}
-              createdAt={issue.createdAt}
-              severity={issue.severity} // This is 1-5
-              assignedWorker={issue.workerAssigned}
-              category={issue.category}
-              description={issue.description}
-              address={issue.address}
-              status={issue.status}
-              longitude={issue.longitude}
-              latitude={issue.latitude}
-            />
+            <Card key={issue._id} variant="elevated" style={styles.issueCard}>
+              <View style={styles.cardHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[Typography.h3, { color: colors.text }]}>{issue.category || issue.title}</Text>
+                  <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
+                    📍 {issue.address || "Location specified"}
+                  </Text>
+                </View>
+                <StatusChip status={issue.status} />
+              </View>
+
+              {issue.imageUrl ? (
+                <Image source={{ uri: issue.imageUrl }} style={styles.issueImg} />
+              ) : null}
+
+              {issue.description ? (
+                <Text style={[Typography.bodySmall, { color: colors.textSecondary, marginTop: Spacing.sm }]}>
+                  {issue.description}
+                </Text>
+              ) : null}
+
+              <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                <View style={styles.footerInfo}>
+                  <Ionicons name="warning-outline" size={16} color={issue.severity >= 4 ? Palette.error : Palette.warning} />
+                  <Text style={[Typography.caption, { color: colors.text, fontWeight: "700", marginLeft: 4 }]}>
+                    Severity: {issue.severity || 3}/5
+                  </Text>
+                </View>
+
+                <Text style={[Typography.caption, { color: colors.textMuted }]}>
+                  {new Date(issue.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            </Card>
           ))
         ) : (
-          <Text style={styles.noData}>✨ No issues found nearby ✨</Text>
+          <Card variant="flat" style={styles.centerCard}>
+            <Ionicons name="checkmark-done-circle-outline" size={54} color={Palette.primary} />
+            <Text style={[Typography.h3, { color: colors.text, marginTop: Spacing.md }]}>
+              All Clear Nearby!
+            </Text>
+            <Text style={[Typography.bodySmall, { color: colors.textSecondary, textAlign: "center", marginTop: 4 }]}>
+              No pending civic issues found within 5km of your current location.
+            </Text>
+          </Card>
         )}
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  main: { flex: 1, backgroundColor: "#f4f4f4" },
+  main: { flex: 1 },
   headerBox: {
-    backgroundColor: "#fff",
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
   },
-  heading: { color: "#333", fontSize: 14 },
-  boldHeading: { fontWeight: "bold", fontSize: 16, color: "#000" },
-  container: { flex: 1, padding: 12 },
-  error: { color: "#d9534f", textAlign: "center", marginTop: 25, fontSize: 15 },
-  noData: { fontSize: 16, textAlign: "center", marginTop: 40, color: "#888", fontStyle: "italic" },
+  badge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  scrollContent: {
+    padding: Spacing.xl,
+    paddingBottom: Spacing.giant * 2,
+  },
+  centerCard: {
+    alignItems: "center",
+    padding: Spacing.giant,
+    marginTop: Spacing.xl,
+  },
+  issueCard: {
+    marginBottom: Spacing.lg,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: Spacing.sm,
+  },
+  issueImg: {
+    width: "100%",
+    height: 180,
+    borderRadius: BorderRadius.md,
+    marginVertical: Spacing.sm,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    paddingTop: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  footerInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
 });
-
-export default NearbyIssues;

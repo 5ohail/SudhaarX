@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "222488687015-0rtvl47g2pf9ifd7svhgkpumaetu6gcc.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.SudhaarX.app",
-            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
-          }
-        },
-        {
           "client_id": "222488687015-84hqjs1qt8rl5nbqpu062ejndigs1dua.apps.googleusercontent.com",
           "client_type": 3
         }
