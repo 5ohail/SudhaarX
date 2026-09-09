@@ -1,52 +1,40 @@
 import nodemailer from "nodemailer";
+import dns from "dns";
 
-/**
- * Creates the Nodemailer SMTP transporter.
- */
+let transporterInstance = null;
+
 export const createTransporter = () => {
-  const host = process.env.SMTP_HOST || "smtp.gmail.com";
-  const port = parseInt(process.env.SMTP_PORT || "587", 10);
-  const secure = process.env.SMTP_SECURE === "true";
-
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
-  const pass = process.env.SMTP_PASSWORD || process.env.EMAIL_PASS;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD;
 
   if (!user || !pass) {
     throw new Error(
-      "SMTP credentials are missing. Please set SMTP_USER and SMTP_PASSWORD."
+      "SMTP_USER or SMTP_PASSWORD is missing."
     );
   }
 
   const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
 
     auth: {
       user,
       pass,
     },
 
-    // Force IPv4 instead of IPv6
     family: 4,
 
-    // Timeouts
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
+    requireTLS: true,
 
-    // STARTTLS for port 587
-    requireTLS: !secure,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
   });
 
   return transporter;
 };
 
-let transporterInstance = null;
-
-/**
- * Returns cached transporter.
- */
 export const getTransporter = () => {
   if (!transporterInstance) {
     transporterInstance = createTransporter();
@@ -55,11 +43,13 @@ export const getTransporter = () => {
   return transporterInstance;
 };
 
-/**
- * Verify SMTP connection.
- */
 export const verifyMailConnection = async () => {
   try {
+    // Check DNS first
+    const addresses = await dns.promises.resolve4("smtp.gmail.com");
+
+    console.log("📡 Gmail IPv4 addresses:", addresses);
+
     const transporter = getTransporter();
 
     await transporter.verify();
@@ -77,4 +67,34 @@ export const verifyMailConnection = async () => {
 
     return false;
   }
+};
+
+export const sendEmail = async ({
+  to,
+  subject,
+  html,
+  text,
+}) => {
+  const transporter = getTransporter();
+
+  const info = await transporter.sendMail({
+    from:
+      process.env.MAIL_FROM ||
+      `"SudhaarX" <${process.env.SMTP_USER}>`,
+
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  console.log(
+    `✅ Email sent successfully to ${to}`
+  );
+
+  console.log(
+    `📨 Message ID: ${info.messageId}`
+  );
+
+  return info;
 };
