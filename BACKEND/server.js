@@ -30,13 +30,14 @@ if (!fs.existsSync(uploadDir)) {
   console.log("📁 Creating local uploads directory...");
   fs.mkdirSync(uploadDir, { recursive: true });
 }
-
+app.set("trust proxy", 1);
 // --- MIDDLEWARE ---
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Apply general rate limiter
+
 app.use("/api/", apiRateLimiter);
 
 // Public Uploads Static Access
